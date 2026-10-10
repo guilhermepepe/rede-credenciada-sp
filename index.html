@@ -185,8 +185,8 @@ function estiloDistrito(f){
 function estiloBairro(f){
   var nm=f.getProperty('b'), n=CUR.porB[f.getProperty('d')+'|'+nm]||0;
   var sel=S.bairro===nm;
-  if(sel) return {fillColor:'#1a73e8',fillOpacity:.55,strokeColor:'#0b3d91',strokeWeight:3,strokeOpacity:1,zIndex:6};
-  return {fillColor:cor(n),fillOpacity:S.bairro?.3:.6,strokeColor:'#ffffff',strokeWeight:1,strokeOpacity:.85,zIndex:3};
+  if(sel) return {fillColor:'#1a73e8',fillOpacity:.3,strokeColor:'#0b3d91',strokeWeight:3.5,strokeOpacity:1,zIndex:6};
+  return {fillColor:cor(n),fillOpacity:S.bairro?.18:.58,strokeColor:'#ffffff',strokeWeight:1,strokeOpacity:.8,zIndex:3};
 }
 function limparLabels(){ labels.forEach(function(m){m.setMap(null)}); labels=[] }
 function rotulo(pos,txt,size,cor2){
@@ -415,7 +415,8 @@ function montaControles(){
   };
   document.getElementById('sub').textContent=D.meta.mapa+' credenciados em '+D.meta.locais+' endereços · rede de 09/10/2026';
   document.getElementById('foot').innerHTML='Posição pelo CEP (precisão de rua). Os limites de bairro são aproximados: '+
-    'cada ponto do distrito foi atribuído ao bairro de centroide mais próximo. '+D.meta.semgeo+' credenciados sem coordenada ficaram fora.';
+    'cada ponto do distrito foi atribuído ao bairro de centroide mais próximo, então um credenciado pode aparecer '+
+    'um pouco fora da área destacada do bairro em que está cadastrado. '+D.meta.semgeo+' credenciados sem coordenada ficaram fora.';
 }
 function atualiza(){
   if(S.nivel==='bairro'||S.nivel==='ponto') desenhaPontos(CUR.vis.filter(function(p){return p.d===S.distrito&&p.b===S.bairro}));
