@@ -14,7 +14,10 @@
 html,body{height:100%;margin:0}
 body{font-family:var(--f);font-size:14px;color:var(--ink);background:var(--bg);display:flex;overflow:hidden}
 #side{width:386px;flex:none;background:var(--surface);border-right:1px solid var(--line);display:flex;flex-direction:column;height:100%}
-#map{flex:1;height:100%;background:var(--surface-2)}
+#map{flex:1;height:100%;background:var(--surface-2);position:relative}
+#tip{position:fixed;z-index:9000;pointer-events:none;background:#17304a;color:#fff;border-radius:4px;
+ padding:5px 9px;font-size:12px;line-height:1.3;box-shadow:0 4px 14px rgba(0,0,0,.3);opacity:0;transition:opacity .08s;white-space:nowrap}
+#tip.on{opacity:1}
 .hd{padding:13px 16px 11px;border-bottom:1px solid var(--line)}
 .hd h1{margin:0;font-size:15.5px;font-weight:600;letter-spacing:-.01em}
 .hd p{margin:4px 0 0;font-size:11.5px;color:var(--ink-3);line-height:1.45}
@@ -102,6 +105,7 @@ input,select{font-family:inherit;font-size:13px;width:100%;padding:7px 10px;bord
   <div class="foot" id="foot"></div>
 </div>
 <div id="map"></div>
+<div id="tip"></div>
 
 <div id="gate"><div class="b">
   <h2>Cole sua chave do Google Maps</h2>
@@ -119,7 +123,7 @@ input,select{font-family:inherit;font-size:13px;width:100%;padding:7px 10px;bord
 var D=null, AREAS=null, map=null, info=null, layD=null, layB=null;
 var TIPOS=[{n:'Clínica (PJ)',c:'#eb6834'},{n:'Dentista (PF)',c:'#1baf7a'},{n:'Profissional vinculado',c:'#6250d6'}];
 var RAMP=['#e8f0fb','#cde2fb','#9ec5f4','#6da7ec','#3987e5','#1c5cab'];
-var S={nivel:'cidade',distrito:null,bairro:null,selPt:null,tipos:[true,true,true],esp:-1,q:''};
+var S={nivel:'cidade',distrito:null,bairro:null,selPt:null,tipos:[true,true,true],esp:-1,q:'',todosNomes:false};
 var CUR={}, markers=[], labels=[], SP={lat:-23.5505,lng:-46.6333};
 var NF=new Intl.NumberFormat('pt-BR');
 function n0(v){return v==null?'—':NF.format(Math.round(v))}
@@ -177,10 +181,10 @@ function estiloDistrito(f){
   var nm=f.getProperty('d'), n=CUR.porD[nm]||0;
   var foco=S.distrito===nm;
   if(S.nivel==='cidade'){
-    return {fillColor:cor(n),fillOpacity:.62,strokeColor:'#ffffff',strokeWeight:1.2,strokeOpacity:.9,zIndex:1};
+    return {fillColor:cor(n),fillOpacity:.62,strokeColor:'#ffffff',strokeWeight:1.2,strokeOpacity:.9,zIndex:1,clickable:true};
   }
   if(foco) return {fillColor:'#000000',fillOpacity:0,strokeColor:'#17304a',strokeWeight:3,strokeOpacity:1,zIndex:4,clickable:false};
-  return {fillColor:cor(n),fillOpacity:.14,strokeColor:'#ffffff',strokeWeight:.8,strokeOpacity:.6,zIndex:1};
+  return {fillColor:cor(n),fillOpacity:.2,strokeColor:'#ffffff',strokeWeight:.9,strokeOpacity:.7,zIndex:1,clickable:true};
 }
 function estiloBairro(f){
   var nm=f.getProperty('b'), n=CUR.porB[f.getProperty('d')+'|'+nm]||0;
@@ -225,12 +229,13 @@ function irCidade(){
 }
 function irDistrito(nm){
   S.nivel='distrito'; S.distrito=nm; S.bairro=null; S.selPt=null;
-  info&&info.close(); limparMarkers();
+  info&&info.close();
   layB.forEach(function(f){layB.remove(f)});
   var sub=AREAS.bairros.features.filter(function(f){return f.properties.d===nm});
   layB.addGeoJson({type:'FeatureCollection',features:sub});
   map.setOptions({styles:STYLE_MEIO});
   var fd=featDistrito(nm); if(fd) map.fitBounds(bounds(fd),30);
+  desenhaPontos(CUR.vis.filter(function(p){return p.d===nm}));
   render();
 }
 function irBairro(nm){
@@ -319,6 +324,14 @@ function render(){
       return '<button class="row" data-b="'+esc(r.b)+'"><span class="sw" style="background:'+cor(c)+'"></span>'+
         '<span><span class="n">'+esc(r.b)+'</span><br><span class="s">'+(r.cep?r.cep+' faixa'+(r.cep===1?'':'s')+' de CEP':'—')+'</span></span>'+
         '<span class="v">'+c+'<small>cred.</small></span></button>'}).join('');
+    var ld=CUR.vis.filter(function(x){return x.d===S.distrito})
+      .sort(function(a,b){return a.b.localeCompare(b.b,'pt-BR')||a.n.localeCompare(b.n,'pt-BR')});
+    h+='<div class="sect">'+(ld.length?ld.length+' credenciado'+(ld.length===1?'':'s')+' no distrito':'Nenhum credenciado neste distrito')+'</div>';
+    h+=ld.map(function(x){
+      return '<div class="item" data-pt="'+esc(x.n)+'">'+
+        '<div class="n">'+esc(x.n)+'</div>'+
+        '<div class="m"><i style="background:'+TIPOS[x.t].c+'"></i>'+esc(TIPOS[x.t].n)+' · '+esc(x.b)+'</div>'+
+        '<div class="a">'+esc(x.e)+'</div></div>'}).join('');
   } else {
     var bp=AREAS.bairros.features.filter(function(f){return f.properties.d===S.distrito&&f.properties.b===S.bairro})[0].properties;
     var lista=CUR.vis.filter(function(x){return x.d===S.distrito&&x.b===S.bairro});
@@ -365,6 +378,15 @@ function render(){
   desenhaRotulos();
 }
 function dt(k,v){return '<dl class="dt"><dt>'+k+'</dt><dd>'+v+'</dd></dl>'}
+var TIPel=null;
+function showTip(txt,ev){
+  if(!TIPel) TIPel=document.getElementById('tip');
+  if(!TIPel||!ev) return;
+  TIPel.textContent=txt; TIPel.classList.add('on');
+  TIPel.style.left=Math.min(window.innerWidth-TIPel.offsetWidth-10,ev.clientX+14)+'px';
+  TIPel.style.top=(ev.clientY+16)+'px';
+}
+function hideTip(){ if(!TIPel) TIPel=document.getElementById('tip'); if(TIPel) TIPel.classList.remove('on') }
 function desenhaRotulos(){
   limparLabels();
   if(!map||!map.getProjection()) return;
@@ -379,19 +401,35 @@ function desenhaRotulos(){
   } else return;
   var proj=map.getProjection(), sc=Math.pow(2,map.getZoom());
   itens.sort(function(a,b){return (b.w-a.w)||a.t.localeCompare(b.t,'pt-BR')});
+  var fonte=S.todosNomes?'10px':'11px', fw=S.todosNomes?4.85:5.4;
+  var DY=[0,-12,12,-24,24,-36,36];
   var caixas=[], n=0;
-  for(var i=0;i<itens.length&&n<55;i++){
+  for(var i=0;i<itens.length;i++){
     var it=itens[i];
-    var txt=it.t+(it.w?'  '+it.w:'');
-    var pt=proj.fromLatLngToPoint(new google.maps.LatLng(it.lat,it.lng));
-    var x=pt.x*sc, y=pt.y*sc, w=txt.length*5.9+14, h=16;
-    var bx=[x-w/2,y-h/2,x+w/2,y+h/2], bate=false;
-    for(var j=0;j<caixas.length;j++){var o=caixas[j];
-      if(bx[0]<o[2]&&bx[2]>o[0]&&bx[1]<o[3]&&bx[3]>o[1]){bate=true;break}}
-    if(bate) continue;
-    caixas.push(bx); n++;
-    rotulo({lat:it.lat,lng:it.lng},txt,'11px','#1f2d38');
+    var txt=it.t+(it.w?' '+it.w:'');
+    var pos={lat:it.lat,lng:it.lng};
+    if(!S.todosNomes){
+      var pt=proj.fromLatLngToPoint(new google.maps.LatLng(it.lat,it.lng));
+      var x=pt.x*sc, y0=pt.y*sc, w=txt.length*fw+6, h=12, ok=null;
+      for(var k=0;k<DY.length&&!ok;k++){
+        var y=y0+DY[k], bx=[x-w/2,y-h/2,x+w/2,y+h/2], bate=false;
+        for(var j=0;j<caixas.length;j++){var o=caixas[j];
+          if(bx[0]<o[2]&&bx[2]>o[0]&&bx[1]<o[3]&&bx[3]>o[1]){bate=true;break}}
+        if(!bate) ok=bx;
+      }
+      if(!ok) continue;
+      caixas.push(ok);
+      var cy=(ok[1]+ok[3])/2;
+      if(Math.abs(cy-y0)>0.5){
+        var ll=proj.fromPointToLatLng(new google.maps.Point(x/sc,cy/sc));
+        if(ll) pos={lat:ll.lat(),lng:ll.lng()};
+      }
+    }
+    n++;
+    rotulo(pos,txt,fonte,'#1f2d38');
   }
+  var av=document.getElementById('btnNomes');
+  if(av) av.textContent=S.todosNomes?'Nomes: todos':'Nomes: '+n+' de '+itens.length;
 }
 
 /* ---------- controles ---------- */
@@ -418,8 +456,14 @@ function montaControles(){
     'cada ponto do distrito foi atribuído ao bairro de centroide mais próximo, então um credenciado pode aparecer '+
     'um pouco fora da área destacada do bairro em que está cadastrado. '+D.meta.semgeo+' credenciados sem coordenada ficaram fora.';
 }
+function pontosDoNivel(){
+  if(S.nivel==='cidade') return [];
+  if(S.nivel==='distrito') return CUR.vis.filter(function(p){return p.d===S.distrito});
+  return CUR.vis.filter(function(p){return p.d===S.distrito&&p.b===S.bairro});
+}
 function atualiza(){
-  if(S.nivel==='bairro'||S.nivel==='ponto') desenhaPontos(CUR.vis.filter(function(p){return p.d===S.distrito&&p.b===S.bairro}));
+  recompute();
+  if(S.nivel!=='cidade') desenhaPontos(pontosDoNivel());
   render();
 }
 
@@ -431,15 +475,32 @@ function initMap(){
     mapTypeControl:true, streetViewControl:true, fullscreenControl:true,
     mapTypeControlOptions:{style:google.maps.MapTypeControlStyle.HORIZONTAL_BAR}});
   info=new google.maps.InfoWindow({maxWidth:320});
+  var bn=document.createElement('button'); bn.type='button'; bn.id='btnNomes';
+  bn.style.cssText='margin:10px;background:#fff;border:0;border-radius:3px;padding:8px 12px;font-size:12.5px;'+
+    'font-family:inherit;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.3)';
+  bn.textContent='Nomes';
+  bn.onclick=function(){ S.todosNomes=!S.todosNomes; desenhaRotulos() };
+  map.controls[google.maps.ControlPosition.TOP_RIGHT].push(bn);
   layD=new google.maps.Data({map:map});
   layB=new google.maps.Data({map:map});
   layD.addGeoJson(AREAS.distritos);
-  layD.addListener('click',function(e){ if(S.nivel==='cidade') irDistrito(e.feature.getProperty('d')) });
-  layD.addListener('mouseover',function(e){ if(S.nivel==='cidade') layD.overrideStyle(e.feature,{fillOpacity:.82,strokeWeight:2}) });
-  layD.addListener('mouseout',function(){ layD.revertStyle() });
+  layD.addListener('click',function(e){ var nm=e.feature.getProperty('d'); if(nm&&nm!==S.distrito) irDistrito(nm) });
+  layD.addListener('mouseover',function(e){
+    if(e.feature.getProperty('d')===S.distrito) return;
+    layD.overrideStyle(e.feature,{fillOpacity:S.nivel==='cidade'?.82:.42,strokeWeight:2});
+  });
+  layD.addListener('mousemove',function(e){
+    var nm=e.feature.getProperty('d'); if(!nm||nm===S.distrito) return hideTip();
+    showTip(nm+' — '+(CUR.porD[nm]||0)+' credenciado'+((CUR.porD[nm]||0)===1?'':'s'),e.domEvent);
+  });
+  layD.addListener('mouseout',function(){ layD.revertStyle(); hideTip() });
   layB.addListener('click',function(e){ irBairro(e.feature.getProperty('b')) });
   layB.addListener('mouseover',function(e){ layB.overrideStyle(e.feature,{fillOpacity:.8,strokeWeight:2}) });
-  layB.addListener('mouseout',function(){ layB.revertStyle() });
+  layB.addListener('mousemove',function(e){
+    var b=e.feature.getProperty('b'), d=e.feature.getProperty('d');
+    showTip(b+' — '+(CUR.porB[d+'|'+b]||0)+' credenciado'+((CUR.porB[d+'|'+b]||0)===1?'':'s'),e.domEvent);
+  });
+  layB.addListener('mouseout',function(){ layB.revertStyle(); hideTip() });
   map.addListener('idle',function(){ desenhaRotulos() });
   irCidade();
 }
