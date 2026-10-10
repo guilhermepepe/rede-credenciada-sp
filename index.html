@@ -401,8 +401,9 @@ function desenhaRotulos(){
   } else return;
   var proj=map.getProjection(), sc=Math.pow(2,map.getZoom());
   itens.sort(function(a,b){return (b.w-a.w)||a.t.localeCompare(b.t,'pt-BR')});
-  var fonte=S.todosNomes?'10px':'11px', fw=S.todosNomes?4.85:5.4;
-  var DY=[0,-12,12,-24,24,-36,36];
+  var fonte=S.todosNomes?'10px':'10px', fw=4.6, fh=11;
+  var OFF=[];
+  [0,-10,10,-20,20,-30,30,-40,40].forEach(function(dy){[0,-26,26,-52,52].forEach(function(dx){OFF.push([dx,dy])})});
   var caixas=[], n=0;
   for(var i=0;i<itens.length;i++){
     var it=itens[i];
@@ -410,18 +411,19 @@ function desenhaRotulos(){
     var pos={lat:it.lat,lng:it.lng};
     if(!S.todosNomes){
       var pt=proj.fromLatLngToPoint(new google.maps.LatLng(it.lat,it.lng));
-      var x=pt.x*sc, y0=pt.y*sc, w=txt.length*fw+6, h=12, ok=null;
-      for(var k=0;k<DY.length&&!ok;k++){
-        var y=y0+DY[k], bx=[x-w/2,y-h/2,x+w/2,y+h/2], bate=false;
+      var x0=pt.x*sc, y0=pt.y*sc, w=txt.length*fw+6, ok=null;
+      for(var k=0;k<OFF.length&&!ok;k++){
+        var x=x0+OFF[k][0], y=y0+OFF[k][1];
+        var bx=[x-w/2,y-fh/2,x+w/2,y+fh/2], bate=false;
         for(var j=0;j<caixas.length;j++){var o=caixas[j];
           if(bx[0]<o[2]&&bx[2]>o[0]&&bx[1]<o[3]&&bx[3]>o[1]){bate=true;break}}
         if(!bate) ok=bx;
       }
       if(!ok) continue;
       caixas.push(ok);
-      var cy=(ok[1]+ok[3])/2;
-      if(Math.abs(cy-y0)>0.5){
-        var ll=proj.fromPointToLatLng(new google.maps.Point(x/sc,cy/sc));
+      var cx=(ok[0]+ok[2])/2, cy=(ok[1]+ok[3])/2;
+      if(Math.abs(cx-x0)>0.5||Math.abs(cy-y0)>0.5){
+        var ll=proj.fromPointToLatLng(new google.maps.Point(cx/sc,cy/sc));
         if(ll) pos={lat:ll.lat(),lng:ll.lng()};
       }
     }
