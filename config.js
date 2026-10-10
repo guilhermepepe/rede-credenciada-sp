@@ -1,7 +1,4 @@
-/* Chave da API do Google Maps usada por esta pagina.
-   Ela fica visivel no codigo-fonte — isso e normal para a Maps JavaScript API.
-   A protecao correta e restringir a chave no Google Cloud Console:
-     Credenciais > a chave > Restricoes de aplicativo > Referenciadores HTTP
-     e adicionar:  https://guilhermepepe.github.io/*
-   Enquanto esta vazia, a pagina pede a chave a quem abrir. */
+/* Alternativa ao key.txt: se preferir, ponha a chave aqui entre as aspas.
+   A pagina procura primeiro aqui, depois em key.txt.
+   Restrinja a chave no Google Cloud Console para https://guilhermepepe.github.io/* */
 window.GMAPS_KEY = "";

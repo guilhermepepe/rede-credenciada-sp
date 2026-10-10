@@ -231,18 +231,27 @@ document.getElementById('limpar').onclick=function(){
 document.getElementById('sub').textContent=D.meta.mapa+' credenciados em '+D.meta.locais+' endereços · fonte: PDF da rede de 09/10/2026';
 document.getElementById('foot').innerHTML='Posição obtida pelo CEP (precisão de rua); use Street View ou "Como chegar" no balão para o endereço exato. '+
   D.meta.semgeo+' credenciados sem coordenada ficaram fora. <button type="button" id="trocar">trocar a chave de API</button>';
-if(typeof window.GMAPS_KEY==='string'&&window.GMAPS_KEY.trim()){
-  var tb=document.getElementById('trocar'); if(tb) tb.style.display='none';
-}
 document.getElementById('trocar').onclick=function(){
   try{localStorage.removeItem('gmapskey')}catch(x){}
   location.reload();
 };
 render();
+var RE_KEY=/^AIza[0-9A-Za-z_\-]{20,}$/;
 (function(){
-  var k=(typeof window.GMAPS_KEY==='string'&&window.GMAPS_KEY.trim())?window.GMAPS_KEY.trim():null;
-  if(!k){ try{k=localStorage.getItem('gmapskey')}catch(x){} }
-  if(k){ var f=document.getElementById('key'); if(f) f.value=k; loadGoogle(k) }
+  function go(k,fixa){
+    if(fixa){ var tb=document.getElementById('trocar'); if(tb) tb.style.display='none' }
+    var f=document.getElementById('key'); if(f) f.value=k;
+    loadGoogle(k);
+  }
+  var k=(typeof window.GMAPS_KEY==='string'&&RE_KEY.test(window.GMAPS_KEY.trim()))?window.GMAPS_KEY.trim():null;
+  if(k){ go(k,true); return }
+  fetch('key.txt',{cache:'no-store'}).then(function(r){ return r.ok?r.text():'' }).catch(function(){ return '' })
+   .then(function(t){
+     t=(t||'').trim();
+     if(RE_KEY.test(t)){ go(t,true); return }
+     var l=null; try{l=localStorage.getItem('gmapskey')}catch(x){}
+     if(l&&RE_KEY.test(l)) go(l,false);
+   });
 })();
 </script>
 </body>
