@@ -134,14 +134,11 @@ var STYLE_MACRO=[
  {featureType:'poi',stylers:[{visibility:'off'}]},
  {featureType:'transit',stylers:[{visibility:'off'}]},
  {featureType:'road',elementType:'labels',stylers:[{visibility:'off'}]},
- {featureType:'road.highway',elementType:'labels',stylers:[{visibility:'simplified'}]},
- {featureType:'administrative.neighborhood',stylers:[{visibility:'off'}]},
- {featureType:'landscape',stylers:[{lightness:25},{saturation:-35}]}
+ {featureType:'administrative.neighborhood',elementType:'labels',stylers:[{visibility:'off'}]}
 ];
 var STYLE_MEIO=[
- {featureType:'poi',stylers:[{visibility:'simplified'}]},
- {featureType:'transit',elementType:'labels.icon',stylers:[{visibility:'off'}]},
- {featureType:'landscape',stylers:[{lightness:12}]}
+ {featureType:'poi',elementType:'labels.icon',stylers:[{visibility:'off'}]},
+ {featureType:'transit',elementType:'labels.icon',stylers:[{visibility:'off'}]}
 ];
 var STYLE_DET=[];
 
@@ -370,16 +367,30 @@ function render(){
 function dt(k,v){return '<dl class="dt"><dt>'+k+'</dt><dd>'+v+'</dd></dl>'}
 function desenhaRotulos(){
   limparLabels();
+  if(!map||!map.getProjection()) return;
+  var itens=[];
   if(S.nivel==='cidade'){
-    AREAS.distritos.features.forEach(function(f){
-      var p=f.properties, n=CUR.porD[p.d]||0;
-      rotulo({lat:p.lat,lng:p.lng},p.d+(n?'  '+n:''),'10px','#24323d');
-    });
+    itens=AREAS.distritos.features.map(function(f){var p=f.properties;
+      return {lat:p.lat,lng:p.lng,t:p.d,w:CUR.porD[p.d]||0}});
   } else if(S.nivel==='distrito'){
-    AREAS.bairros.features.filter(function(f){return f.properties.d===S.distrito}).forEach(function(f){
-      var p=f.properties, n=CUR.porB[p.d+'|'+p.b]||0;
-      rotulo({lat:p.lat,lng:p.lng},p.b+(n?'  '+n:''),'10px','#24323d');
-    });
+    itens=AREAS.bairros.features.filter(function(f){return f.properties.d===S.distrito})
+      .map(function(f){var p=f.properties;
+        return {lat:p.lat,lng:p.lng,t:p.b,w:CUR.porB[p.d+'|'+p.b]||0}});
+  } else return;
+  var proj=map.getProjection(), sc=Math.pow(2,map.getZoom());
+  itens.sort(function(a,b){return (b.w-a.w)||a.t.localeCompare(b.t,'pt-BR')});
+  var caixas=[], n=0;
+  for(var i=0;i<itens.length&&n<55;i++){
+    var it=itens[i];
+    var txt=it.t+(it.w?'  '+it.w:'');
+    var pt=proj.fromLatLngToPoint(new google.maps.LatLng(it.lat,it.lng));
+    var x=pt.x*sc, y=pt.y*sc, w=txt.length*5.9+14, h=16;
+    var bx=[x-w/2,y-h/2,x+w/2,y+h/2], bate=false;
+    for(var j=0;j<caixas.length;j++){var o=caixas[j];
+      if(bx[0]<o[2]&&bx[2]>o[0]&&bx[1]<o[3]&&bx[3]>o[1]){bate=true;break}}
+    if(bate) continue;
+    caixas.push(bx); n++;
+    rotulo({lat:it.lat,lng:it.lng},txt,'11px','#1f2d38');
   }
 }
 
@@ -428,6 +439,7 @@ function initMap(){
   layB.addListener('click',function(e){ irBairro(e.feature.getProperty('b')) });
   layB.addListener('mouseover',function(e){ layB.overrideStyle(e.feature,{fillOpacity:.8,strokeWeight:2}) });
   layB.addListener('mouseout',function(){ layB.revertStyle() });
+  map.addListener('idle',function(){ desenhaRotulos() });
   irCidade();
 }
 window.initMap=initMap;
