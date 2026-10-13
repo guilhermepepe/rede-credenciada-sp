@@ -538,7 +538,7 @@ function atualiza(){ recompute(); desenhaPontos(pontosDoNivel()); render(); }
 function initMap(){
   document.getElementById('gate').style.display='none';
   map=new google.maps.Map(document.getElementById('map'),{
-    center:SP, zoom:11, mapTypeId:'roadmap', styles:STYLE_MACRO,
+    center:SP, zoom:11, mapTypeId:'roadmap', styles:STYLE_MACRO, isFractionalZoomEnabled:true,
     mapTypeControl:true, streetViewControl:true, fullscreenControl:true,
     mapTypeControlOptions:{style:google.maps.MapTypeControlStyle.HORIZONTAL_BAR}});
   info=new google.maps.InfoWindow({maxWidth:320});
