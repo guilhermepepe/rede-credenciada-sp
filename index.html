@@ -129,7 +129,7 @@ var TIPOS=[{n:'Clínica (PJ)',c:'#eb6834'},{n:'Dentista (PF)',c:'#1baf7a'},{n:'P
 var S={nivel:'cidade',zona:null,distrito:null,bairro:null,selPt:null,tipos:[true,true,true],esp:-1,q:'',todosNomes:false};
 var CUR={}, markers=[], labels=[], SP={lat:-23.5505,lng:-46.6333};
 var layZ=null, layC=null, D2Z={};
-var ZCOR={'Zona Norte':'#9cc2ec','Zona Leste':'#f3b79a','Zona Sul':'#9bd9c2','Zona Oeste':'#bdb5ee','Centro':'#f2d89a'};
+var ZCOR={'Zona Norte':'#9cc2ec','Zona Leste':'#f3b79a','Zona Sul':'#86ccb0','Zona Oeste':'#bdb5ee','Centro':'#f2d89a'};
 var ZSTR={'Zona Norte':'#2a78d6','Zona Leste':'#d95926','Zona Sul':'#199e70','Zona Oeste':'#6250d6','Centro':'#c98500'};
 var PONTO='#b3261e', CIDADE_STR='#334155';
 function zc(d){ return ZCOR[D2Z[d]]||'#cbd5e1' }
@@ -185,7 +185,7 @@ function recompute(){
 function estiloZona(f){
   var z=f.getProperty('z');
   if(S.nivel==='cidade')
-    return {visible:true,fillColor:ZCOR[z],fillOpacity:.62,strokeColor:'#ffffff',strokeWeight:2,strokeOpacity:1,zIndex:1,clickable:true};
+    return {visible:true,fillColor:ZCOR[z],fillOpacity:.66,strokeColor:'#ffffff',strokeWeight:2,strokeOpacity:1,zIndex:1,clickable:true};
   return {visible:true,fillColor:'#000000',fillOpacity:0,strokeColor:ZSTR[z],strokeWeight:2.2,strokeOpacity:.85,zIndex:7,clickable:false};
 }
 function estiloCidade(){
