@@ -434,9 +434,9 @@ function render(){
   Array.from(pane.querySelectorAll('[data-pt]')).forEach(function(b){b.onclick=function(){
     var x=CUR.vis.filter(function(y){return y.n===b.getAttribute('data-pt')})[0]; if(x) irPonto(x)}});
   document.getElementById('cnt').textContent=CUR.vis.length+' de '+D.pontos.length+' credenciados';
-  if(layZ) layZ.setStyle(estiloZona);
-  if(layD) layD.setStyle(estiloDistrito);
-  if(layB) layB.setStyle(estiloBairro);
+  if(layZ){ layZ.revertStyle(); layZ.setStyle(estiloZona) }
+  if(layD){ layD.revertStyle(); layD.setStyle(estiloDistrito) }
+  if(layB){ layB.revertStyle(); layB.setStyle(estiloBairro) }
   desenhaRotulos();
 }
 function dt(k,v){return '<dl class="dt"><dt>'+k+'</dt><dd>'+v+'</dd></dl>'}
