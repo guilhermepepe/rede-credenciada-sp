@@ -215,12 +215,22 @@ function rotulo(pos,txt,size,cor2){
     label:{text:txt,fontSize:size,fontWeight:'600',color:cor2,className:'lbl-map'}}));
 }
 function limparMarkers(){ markers.forEach(function(m){m.setMap(null)}); markers=[] }
-function desenhaPontos(lista){
+function emFoco(p){
+  if(S.nivel==='cidade') return true;
+  if(S.nivel==='zona') return D2Z[p.d]===S.zona;
+  if(S.nivel==='distrito') return p.d===S.distrito;
+  return p.d===S.distrito&&p.b===S.bairro;
+}
+function desenhaPontos(){
   limparMarkers();
+  if(!CUR.vis) return;
   var sc=S.nivel==='cidade'?4.5:(S.nivel==='zona'?5.5:7), sw=S.nivel==='cidade'?1:(S.nivel==='zona'?1.4:2);
-  lista.forEach(function(p){
-    var m=new google.maps.Marker({position:{lat:p.la,lng:p.lo},map:map,title:p.n,zIndex:80,
-      icon:{path:google.maps.SymbolPath.CIRCLE,scale:sc,fillColor:PONTO,fillOpacity:1,strokeColor:'#fff',strokeWeight:sw}});
+  var scf=Math.max(3.6,sc-2.2), swf=Math.max(.9,sw-.8);
+  CUR.vis.forEach(function(p){
+    var f=emFoco(p);
+    var m=new google.maps.Marker({position:{lat:p.la,lng:p.lo},map:map,title:p.n,zIndex:f?80:60,
+      icon:{path:google.maps.SymbolPath.CIRCLE,scale:f?sc:scf,fillColor:PONTO,fillOpacity:f?1:.42,
+        strokeColor:'#fff',strokeWeight:f?sw:swf,strokeOpacity:f?1:.65}});
     m.addListener('click',function(){ irPonto(p) });
     markers.push(m);
   });
@@ -243,7 +253,7 @@ function irCidade(){
   var b=new google.maps.LatLngBounds();
   layZ.forEach(function(f){ f.getGeometry().forEachLatLng(function(ll){b.extend(ll)}) });
   map.fitBounds(b,20);
-  desenhaPontos(CUR.vis);
+  desenhaPontos();
   render();
 }
 function irZona(nm){
@@ -252,7 +262,7 @@ function irZona(nm){
   layB.forEach(function(f){layB.remove(f)});
   map.setOptions({styles:STYLE_MEIO});
   var fz=featZona(nm); if(fz) map.fitBounds(bounds(fz),24);
-  desenhaPontos(CUR.vis.filter(function(p){return D2Z[p.d]===nm}));
+  desenhaPontos();
   render();
 }
 function irDistrito(nm){
@@ -263,7 +273,7 @@ function irDistrito(nm){
   layB.addGeoJson({type:'FeatureCollection',features:sub});
   map.setOptions({styles:STYLE_MEIO});
   var fd=featDistrito(nm); if(fd) map.fitBounds(bounds(fd),30);
-  desenhaPontos(CUR.vis.filter(function(p){return p.d===nm}));
+  desenhaPontos();
   render();
 }
 function irBairro(nm){
@@ -271,7 +281,7 @@ function irBairro(nm){
   info&&info.close();
   map.setOptions({styles:STYLE_DET});
   var fb=featBairro(nm); if(fb) map.fitBounds(bounds(fb),40);
-  desenhaPontos(CUR.vis.filter(function(p){return p.d===S.distrito&&p.b===nm}));
+  desenhaPontos();
   render();
 }
 function irPonto(p){
@@ -282,7 +292,7 @@ function irPonto(p){
       layB.addGeoJson({type:'FeatureCollection',features:AREAS.bairros.features.filter(function(f){return f.properties.d===p.d})});
     }
     S.bairro=p.b;
-    desenhaPontos(CUR.vis.filter(function(x){return x.d===p.d&&x.b===p.b}));
+    desenhaPontos();
   }
   map.setOptions({styles:STYLE_DET});
   map.panTo({lat:p.la,lng:p.lo}); map.setZoom(18);
@@ -520,13 +530,7 @@ function montaControles(){
     'cada ponto do distrito foi atribuído ao bairro de centroide mais próximo, então um credenciado pode aparecer '+
     'um pouco fora da área destacada do bairro em que está cadastrado. '+D.meta.semgeo+' credenciados sem coordenada ficaram fora.';
 }
-function pontosDoNivel(){
-  if(S.nivel==='cidade') return CUR.vis;
-  if(S.nivel==='zona') return CUR.vis.filter(function(p){return D2Z[p.d]===S.zona});
-  if(S.nivel==='distrito') return CUR.vis.filter(function(p){return p.d===S.distrito});
-  return CUR.vis.filter(function(p){return p.d===S.distrito&&p.b===S.bairro});
-}
-function atualiza(){ recompute(); desenhaPontos(pontosDoNivel()); render(); }
+function atualiza(){ recompute(); desenhaPontos(); render(); }
 
 /* ---------- boot ---------- */
 function initMap(){
