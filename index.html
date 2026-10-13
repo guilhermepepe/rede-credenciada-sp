@@ -331,7 +331,7 @@ function legenda(t){
     '<div class="lgx"><span>0</span><span>1–'+b[0]+'</span><span>'+(b[3]+1)+'+</span></div></div>';
 }
 function render(){
-  recompute(); crumb();
+  recompute(); crumb(); hideTip();
   var pane=document.getElementById('pane'), h='';
   if(S.nivel==='cidade'){
     var zs=AREAS.zonas.features.map(function(f){return f.properties})
@@ -440,11 +440,12 @@ function render(){
   desenhaRotulos();
 }
 function dt(k,v){return '<dl class="dt"><dt>'+k+'</dt><dd>'+v+'</dd></dl>'}
-var TIPel=null;
+var TIPel=null, TIPt=null;
 function showTip(txt,ev){
   if(!TIPel) TIPel=document.getElementById('tip');
   if(!TIPel||!ev) return;
   TIPel.textContent=txt; TIPel.classList.add('on');
+  clearTimeout(TIPt); TIPt=setTimeout(hideTip,1600);
   TIPel.style.left=Math.min(window.innerWidth-TIPel.offsetWidth-10,ev.clientX+14)+'px';
   TIPel.style.top=(ev.clientY+16)+'px';
 }
