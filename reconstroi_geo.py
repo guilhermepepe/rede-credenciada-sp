@@ -95,7 +95,7 @@ for pr,g in DIST:
         # descarta retalhos minusculos que nao contem credenciado
         if bruto.geom_type=='MultiPolygon':
             ar=bruto.area
-            keep=[g2 for g2 in bruto.geoms if g2.area>=ar*0.02 or any(g2.buffer(0.00015).covers(q) for q in meus)]
+            keep=[g2 for g2 in bruto.geoms if g2.area>=ar*0.10 or any(g2.buffer(0.00015).covers(q) for q in meus)]
             if keep: bruto=unary_union(keep).buffer(0)
         poly=bruto.simplify(0.00022)
         if poly.is_empty or poly.geom_type=='GeometryCollection': poly=bruto
