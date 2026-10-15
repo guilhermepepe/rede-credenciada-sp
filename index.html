@@ -526,9 +526,10 @@ function montaControles(){
   };
   AREAS.distritos.features.forEach(function(f){ D2Z[f.properties.d]=f.properties.z });
   document.getElementById('sub').textContent=D.meta.mapa+' credenciados em '+D.meta.locais+' endereços · rede de 09/10/2026';
-  document.getElementById('foot').innerHTML='Posição pelo CEP (precisão de rua). Os limites de bairro são aproximados: '+
-    'cada ponto do distrito foi atribuído ao bairro de centroide mais próximo, então um credenciado pode aparecer '+
-    'um pouco fora da área destacada do bairro em que está cadastrado. '+D.meta.semgeo+' credenciados sem coordenada ficaram fora.';
+  document.getElementById('foot').innerHTML='Posição pelo CEP (precisão de rua): cada credenciado fica no logradouro do '+
+    'CEP cadastrado, não no número exato. O bairro é o do próprio CEP e os limites de bairro são desenhados a partir '+
+    'da distribuição dos CEPs — todo credenciado aparece dentro do bairro em que está contado. '+
+    D.meta.semgeo+' credenciados sem coordenada ficaram fora do mapa.';
 }
 function atualiza(){ recompute(); desenhaPontos(); render(); }
 
