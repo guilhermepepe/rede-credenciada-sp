@@ -58,27 +58,36 @@ feats=[]
 for pr,g in DIST:
     lst=sem.get(pr['d'],[])
     if not lst: continue
-    porB=collections.defaultdict(list)
-    # raio maximo de cada semente: proporcional ao espacamento local dos CEPs.
-    # sem isso a celula de Voronoi se estica ate a borda do distrito e o bairro
-    # vira uma mancha enorme onde nao ha outro CEP competindo.
+    # Celulas de Voronoi recortadas pela envoltoria das proprias sementes do bairro.
+    # Sem esse recorte a celula se estica ate a borda do distrito onde nao ha outro
+    # CEP competindo e o bairro vira uma mancha; com ele a area fica do tamanho da
+    # mancha de CEPs do bairro e continua conectada.
     GR=1/111.32                      # 1 km em graus de latitude
     COS=math.cos(math.radians(-23.55))
-    def dist(p1,p2): return math.hypot((p1[0]-p2[0]),(p1[1]-p2[1])*COS)
+    def dist(p1,p2): return math.hypot(p1[0]-p2[0],(p1[1]-p2[1])*COS)
+    celB=collections.defaultdict(list); semB=collections.defaultdict(list)
+    for b,la,lo in lst: semB[b].append((la,lo))
     if len(lst)==1:
-        porB[lst[0][0]].append(g.intersection(Point(lst[0][2],lst[0][1]).buffer(0.8*GR)))
+        celB[lst[0][0]].append(g)
     else:
         vd=voronoi_diagram(MultiPoint([Point(lo,la) for _,la,lo in lst]), envelope=g.buffer(0.05))
         cells=list(vd.geoms)
-        coords=[(la,lo) for _,la,lo in lst]
-        for i,(b,la,lo) in enumerate(lst):
-            pt=Point(lo,la)
-            cel=next((c for c in cells if c.contains(pt)),None)
+        for b,la,lo in lst:
+            cel=next((c for c in cells if c.contains(Point(lo,la))),None)
             if cel is None: continue
-            dn=min(dist((la,lo),c) for j,c in enumerate(coords) if j!=i)
-            raio=min(1.5*GR, max(0.25*GR, 2.0*dn))
-            inter=g.intersection(cel).intersection(pt.buffer(raio,quad_segs=10))
-            if not inter.is_empty: porB[b].append(inter)
+            inter=g.intersection(cel)
+            if not inter.is_empty: celB[b].append(inter)
+    porB=collections.defaultdict(list)
+    for b,parts in celB.items():
+        sm=semB[b]
+        if len(sm)>1:
+            nn=[min(dist(p1,p2) for p2 in sm if p2!=p1) for p1 in sm]
+            folga=min(0.9*GR, max(0.25*GR, 1.6*st.median(nn)))
+        else:
+            folga=0.5*GR
+        env=MultiPoint([Point(lo,la) for la,lo in sm]).convex_hull.buffer(folga,quad_segs=12)
+        rec=unary_union([x.buffer(0) for x in parts]).intersection(env)
+        if not rec.is_empty: porB[b].append(rec)
     for b,parts in porB.items():
         bruto=unary_union(parts).buffer(0)
         if bruto.is_empty: continue
