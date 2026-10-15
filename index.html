@@ -607,8 +607,8 @@ document.getElementById('key').addEventListener('keydown',function(e){if(e.key==
 
 var RE_KEY=/^AIza[0-9A-Za-z_\-]{20,}$/;
 Promise.all([
-  fetch('dados.json').then(function(r){return r.json()}),
-  fetch('areas.json').then(function(r){return r.json()})
+  fetch('dados.json',{cache:'no-cache'}).then(function(r){return r.json()}),
+  fetch('areas.json',{cache:'no-cache'}).then(function(r){return r.json()})
 ]).then(function(a){
   D=a[0]; AREAS=a[1];
   montaControles(); recompute();
