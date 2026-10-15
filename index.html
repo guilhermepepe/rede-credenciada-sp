@@ -199,7 +199,7 @@ function estiloDistrito(f){
     if(naZona) return {visible:true,fillColor:ZCOR[z],fillOpacity:.62,strokeColor:'#ffffff',strokeWeight:1.3,strokeOpacity:.95,zIndex:2,clickable:true};
     return {visible:true,fillColor:ZCOR[z],fillOpacity:.16,strokeColor:'#ffffff',strokeWeight:.8,strokeOpacity:.6,zIndex:1,clickable:true};
   }
-  if(foco) return {visible:true,fillColor:'#000000',fillOpacity:0,strokeColor:'#17304a',strokeWeight:3,strokeOpacity:1,zIndex:4,clickable:false};
+  if(foco) return {visible:true,fillColor:ZCOR[z],fillOpacity:.16,strokeColor:'#17304a',strokeWeight:3,strokeOpacity:1,zIndex:0,clickable:false};
   return {visible:true,fillColor:ZCOR[z],fillOpacity:.2,strokeColor:'#ffffff',strokeWeight:.9,strokeOpacity:.7,zIndex:1,clickable:true};
 }
 function estiloBairro(f){
