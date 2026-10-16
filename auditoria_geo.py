@@ -28,13 +28,16 @@ if os.path.exists(SWEEP):
         if q in m4 and m4[q][2]>=3:
             dd=km(p['la'],p['lo'],m4[q][0],m4[q][1])
             if dd>8: erros.append(('%.1f km do setor de CEP'%dd,p['c'],p['e'],p['d']))
-# 3) todo credenciado deve estar dentro do poligono do seu distrito e da sua zona
+# 3) todo credenciado deve estar dentro do poligono do seu bairro, distrito e zona
+pb={(f['properties']['d'],f['properties']['b']):shape(f['geometry']) for f in a['bairros']['features']}
 pdd={f['properties']['d']:shape(f['geometry']) for f in a['distritos']['features']}
 pz={f['properties']['z']:shape(f['geometry']) for f in a['zonas']['features']}
 D2Z={f['properties']['d']:f['properties']['z'] for f in a['distritos']['features']}
 for p in d['pontos']:
     q=Point(p['lo'],p['la'])
-    if not pdd[p['d']].covers(q):
+    if (p['d'],p['b']) not in pb or not pb[(p['d'],p['b'])].covers(q):
+        erros.append(('fora do poligono do proprio bairro',p['c'],p['e'],p['d']+'/'+p['b']))
+    elif not pdd[p['d']].covers(q):
         erros.append(('fora do poligono do distrito',p['c'],p['e'],p['d']))
     elif not pz[D2Z[p['d']]].covers(q):
         erros.append(('fora do poligono da zona',p['c'],p['e'],D2Z[p['d']]))

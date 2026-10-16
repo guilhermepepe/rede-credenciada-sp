@@ -54,18 +54,62 @@ for p in dados['pontos']:
 print('sementes:',sum(len(v) for v in sem.values()))
 
 SPMAP={pr['d']:pr['sp'] for pr,_ in DIST}; ZMAP={pr['d']:pr['z'] for pr,_ in DIST}
-# Sao Paulo nao tem limite oficial de bairro e nenhuma base publica traz esses
-# poligonos, entao o bairro NAO e desenhado: fica so o nome, posicionado na
-# mediana dos CEPs dele, e as contagens.
-porDB=collections.defaultdict(list)
-for dd,lst in sem.items():
-    for b,la,lo in lst: porDB[(dd,b)].append((la,lo))
 feats=[]
-for (dd,b),v in sorted(porDB.items()):
-    feats.append({'b':b,'d':dd,'sp':SPMAP[dd],'z':ZMAP[dd],'cep':ncep.get((dd,b),0),
-        'lat':round(st.median([x[0] for x in v]),6),'lng':round(st.median([x[1] for x in v]),6),
-        'cred':0,'pj':0,'pf':0,'vi':0,'nesp':0})
-print('bairros (sem geometria):',len(feats))
+for pr,g in DIST:
+    lst=sem.get(pr['d'],[])
+    if not lst: continue
+    # Celulas de Voronoi recortadas pela envoltoria das proprias sementes do bairro.
+    # Sem esse recorte a celula se estica ate a borda do distrito onde nao ha outro
+    # CEP competindo e o bairro vira uma mancha; com ele a area fica do tamanho da
+    # mancha de CEPs do bairro e continua conectada.
+    GR=1/111.32                      # 1 km em graus de latitude
+    COS=math.cos(math.radians(-23.55))
+    def dist(p1,p2): return math.hypot(p1[0]-p2[0],(p1[1]-p2[1])*COS)
+    celB=collections.defaultdict(list); semB=collections.defaultdict(list)
+    for b,la,lo in lst: semB[b].append((la,lo))
+    if len(lst)==1:
+        celB[lst[0][0]].append(g)
+    else:
+        vd=voronoi_diagram(MultiPoint([Point(lo,la) for _,la,lo in lst]), envelope=g.buffer(0.05))
+        cells=list(vd.geoms)
+        for b,la,lo in lst:
+            cel=next((c for c in cells if c.contains(Point(lo,la))),None)
+            if cel is None: continue
+            inter=g.intersection(cel)
+            if not inter.is_empty: celB[b].append(inter)
+    porB=collections.defaultdict(list)
+    for b,parts in celB.items():
+        sm=semB[b]
+        if len(sm)>1:
+            nn=[min(dist(p1,p2) for p2 in sm if p2!=p1) for p1 in sm]
+            folga=min(0.9*GR, max(0.25*GR, 1.6*st.median(nn)))
+        else:
+            folga=0.5*GR
+        env=MultiPoint([Point(lo,la) for la,lo in sm]).convex_hull.buffer(folga,quad_segs=12)
+        rec=unary_union([x.buffer(0) for x in parts]).intersection(env)
+        if not rec.is_empty: porB[b].append(rec)
+    for b,parts in porB.items():
+        bruto=unary_union(parts).buffer(0)
+        if bruto.is_empty: continue
+        meus=[Point(p['lo'],p['la']) for p in dados['pontos'] if p['d']==pr['d'] and p['b']==b]
+        # descarta retalhos minusculos que nao contem credenciado
+        if bruto.geom_type=='MultiPolygon':
+            ar=bruto.area
+            keep=[g2 for g2 in bruto.geoms if g2.area>=ar*0.10 or any(g2.buffer(0.00015).covers(q) for q in meus)]
+            if keep: bruto=unary_union(keep).buffer(0)
+        poly=bruto.simplify(0.00022)
+        if poly.is_empty or poly.geom_type=='GeometryCollection': poly=bruto
+        # nenhum credenciado do bairro pode ficar de fora da area desenhada
+        falta=[q for q in meus if not poly.covers(q)]
+        if falta: poly=unary_union([poly]+[q.buffer(0.00013) for q in falta]).buffer(0)
+        mior=max(poly.geoms,key=lambda x:x.area) if poly.geom_type=='MultiPolygon' else poly
+        rp=mior.representative_point()
+        gj=mapping(poly)
+        feats.append({'type':'Feature','properties':{'b':b,'d':pr['d'],'sp':SPMAP[pr['d']],'z':ZMAP[pr['d']],
+            'cep':ncep.get((pr['d'],b),0),'lat':round(rp.y,6),'lng':round(rp.x,6),
+            'cred':0,'pj':0,'pf':0,'vi':0,'nesp':0},
+            'geometry':{'type':gj['type'],'coordinates':rnd(gj['coordinates'])}})
+print('poligonos de bairro:',len(feats))
 
 cb=collections.defaultdict(collections.Counter); eb=collections.defaultdict(set)
 cd=collections.defaultdict(collections.Counter); ed=collections.defaultdict(set); ld=collections.defaultdict(set)
@@ -74,21 +118,21 @@ for p in dados['pontos']:
     cb[kb]['cred']+=1; cb[kb][t]+=1; eb[kb].update(p['es'])
     cd[p['d']]['cred']+=1; cd[p['d']][t]+=1; ed[p['d']].update(p['es']); ld[p['d']].add(p['e']+'|'+p['c'])
 for f in feats:
-    k=f['d']+'|'+f['b']; c=cb[k]
-    f.update(cred=c['cred'],pj=c['pj'],pf=c['pf'],vi=c['vi'],nesp=len(eb[k]))
-nb=collections.Counter(f['d'] for f in feats)
+    k=f['properties']['d']+'|'+f['properties']['b']; c=cb[k]
+    f['properties'].update(cred=c['cred'],pj=c['pj'],pf=c['pf'],vi=c['vi'],nesp=len(eb[k]))
+nb=collections.Counter(f['properties']['d'] for f in feats)
 for pr,_ in DIST:
     c=cd[pr['d']]
     pr.update(cred=c['cred'],pj=c['pj'],pf=c['pf'],vi=c['vi'],nesp=len(ed[pr['d']]),
               loc=len(ld[pr['d']]),nbai=nb.get(pr['d'],0))
 areas['distritos']['features']=[{'type':'Feature','properties':pr,
     'geometry':{'type':mapping(g)['type'],'coordinates':rnd(mapping(g)['coordinates'])}} for pr,g in DIST]
-areas['bairros']=feats
+areas['bairros']={'type':'FeatureCollection','features':feats}
 for f in areas['zonas']['features']:
     ds=[pr for pr,_ in DIST if pr['z']==f['properties']['z']]
     f['properties'].update(cred=sum(x['cred'] for x in ds),loc=sum(x['loc'] for x in ds),
         nbai=sum(x['nbai'] for x in ds),nd=len(ds))
-dados['meta'].update(bairros=len(feats),bairros_com=sum(1 for f in feats if f['cred']),
+dados['meta'].update(bairros=len(feats),bairros_com=sum(1 for f in feats if f['properties']['cred']),
     distritos_com=sum(1 for pr,_ in DIST if pr['cred']))
 json.dump(areas,open(BASE+'areas.json','w'),ensure_ascii=False,separators=(',',':'))
 json.dump(dados,open(BASE+'dados.json','w'),ensure_ascii=False,separators=(',',':'))
