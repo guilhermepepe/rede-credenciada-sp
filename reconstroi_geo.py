@@ -1,27 +1,21 @@
 # -*- coding: utf-8 -*-
 """Reconstroi areas.json/dados.json a partir dos CEPs limpos.
 
-A area de cada bairro e a envoltoria concava dos CEPs que os Correios
-classificam naquele bairro (mais os credenciados dele), com uma folga curta.
-Ela e recortada pelo distrito e pela regiao de Voronoi do proprio bairro, para
-nao invadir o vizinho. Sao Paulo nao tem limite oficial de bairro: esta e a
-delimitacao que o dado de CEP permite, e ela acompanha de perto as ruas que
-pertencem ao bairro.
+Cada distrito e dividido INTEIRO entre os seus bairros (Voronoi dos centroides
+de CEP de cada bairro, recortado pelo distrito): sem buracos, sem ilhas, cada
+bairro uma peca so. O credenciado e contado no bairro cuja area o contem, entao
+o numero do painel e sempre igual aos pontos desenhados. O bairro do CEP fica
+guardado em 'bc' e aparece na ficha do credenciado.
 """
 import json, math, statistics as st, collections
-import shapely
-from shapely.geometry import shape, Point, mapping, MultiPoint, Polygon, MultiPolygon
+from shapely.geometry import shape, Point, mapping, MultiPoint
 from shapely.ops import voronoi_diagram, unary_union
 BASE='/home/claude/rede-credenciada-sp/'
-SCR='/tmp/claude-0/-home-claude/0181ac0f-dbc6-5800-b9bf-408f428f8d00/scratchpad/'
 ORIG='/tmp/claude-0/-home-claude-rede-credenciada-sp/0181ac0f-dbc6-5800-b9bf-408f428f8d00/scratchpad/'
 sweep=json.load(open('/home/claude/rede/cep_sweep.json'))
 ok=set(json.load(open(ORIG+'ok.json'))); rec=json.load(open(ORIG+'rec_prefixos.json'))
 areas=json.load(open(ORIG+'areas.bak.json')); dados=json.load(open(ORIG+'dados.bak.json'))
 DIST=[(dict(f['properties']),shape(f['geometry'])) for f in areas['distritos']['features']]
-GR=1/111.32                      # 1 km em graus de latitude
-COS=math.cos(math.radians(-23.55))
-FOLGA=0.13*GR                    # 130 m de folga em volta dos CEPs do bairro
 def distrito_de(la,lo):
     p=Point(lo,la)
     for pr,g in DIST:
@@ -39,9 +33,10 @@ FIX={'03568000':(-23.542300,-46.481222),'03312050':(-23.542550,-46.564700)}
 for p in dados['pontos']:
     c=p['c'].replace('-','')
     if c in FIX: p['la'],p['lo']=FIX[c]
-for p in dados['pontos']:
-    p['d']=distrito_de(p['la'],p['lo'])     # o bairro p['b'] vem do CEP e nao muda
+    p['bc']=p['b']                       # bairro declarado no CEP
+    p['d']=distrito_de(p['la'],p['lo'])
 
+# 1. sementes: cada faixa de CEP do bairro e cada credenciado dele
 sem=collections.defaultdict(list); ncep=collections.Counter(); vistos=collections.defaultdict(set)
 def add(dd,b,la,lo):
     ch=(round(la,6),round(lo,6))
@@ -51,58 +46,85 @@ for k,v in sweep.items():
     b=(v.get('bairro') or '').strip()
     if not b or not coord[k]: continue
     la,lo=coord[k]; dd=distrito_de(la,lo); ncep[(dd,b)]+=1; add(dd,b,la,lo)
-for p in dados['pontos']: add(p['d'],p['b'],p['la'],p['lo'])
+for p in dados['pontos']: add(p['d'],p['bc'],p['la'],p['lo'])
 print('sementes:',sum(len(v) for v in sem.values()))
 
+# 2. Voronoi das sementes, celulas unidas por bairro e recortadas pelo distrito:
+#    divide o distrito inteiro, sem buraco, e cada CEP fica no seu proprio bairro
 SPMAP={pr['d']:pr['sp'] for pr,_ in DIST}; ZMAP={pr['d']:pr['z'] for pr,_ in DIST}
-feats=[]
+feats=[]; geo={}
 for pr,g in DIST:
     lst=sem.get(pr['d'],[])
     if not lst: continue
     porB=collections.defaultdict(list)
-    for b,la,lo in lst: porB[b].append((la,lo))
-    # regiao de Voronoi de cada bairro, para nao invadir o vizinho
-    reg={}
-    if len(lst)>1:
+    if len(lst)==1:
+        porB[lst[0][0]].append(g)
+    else:
         vd=voronoi_diagram(MultiPoint([Point(lo,la) for _,la,lo in lst]), envelope=g.buffer(0.05))
         cells=list(vd.geoms)
-        acc=collections.defaultdict(list)
         for b,la,lo in lst:
-            c=next((x for x in cells if x.contains(Point(lo,la))),None)
-            if c is not None: acc[b].append(c)
-        reg={b:unary_union([x.buffer(0) for x in v]) for b,v in acc.items()}
-    for b,pts in porB.items():
-        mp=MultiPoint([Point(lo,la) for la,lo in pts])
-        if len(pts)>=4:
-            env=shapely.concave_hull(mp,ratio=0.62)
-        elif len(pts)>1:
-            env=mp.convex_hull
-        else:
-            env=mp
-        area=env.buffer(FOLGA if len(pts)>2 else 0.26*GR, quad_segs=10)
-        if b in reg: area=area.intersection(reg[b])
-        area=area.intersection(g).buffer(0)
-        if area.is_empty: continue
-        meus=[Point(p['lo'],p['la']) for p in dados['pontos'] if p['d']==pr['d'] and p['b']==b]
-        if area.geom_type=='MultiPolygon':
-            tot=area.area
-            keep=[x for x in area.geoms if x.area>=tot*0.08 or any(x.buffer(0.00015).covers(q) for q in meus)]
-            if keep: area=unary_union(keep).buffer(0)
-        area=area.buffer(0.07*GR,quad_segs=8).buffer(-0.07*GR,quad_segs=8).buffer(0)   # tira bicos
-        area=area.intersection(g).buffer(0)
-        if area.is_empty: continue
-        simp=area.simplify(0.00025)
-        if not simp.is_empty and simp.geom_type!='GeometryCollection': area=simp
-        falta=[q for q in meus if not area.covers(q)]
-        if falta: area=unary_union([area]+[q.buffer(0.00013) for q in falta]).buffer(0)
-        mior=max(area.geoms,key=lambda x:x.area) if area.geom_type=='MultiPolygon' else area
+            cel=next((c for c in cells if c.contains(Point(lo,la))),None)
+            if cel is None: continue
+            inter=g.intersection(cel).buffer(0)
+            if not inter.is_empty: porB[b].append(inter)
+    bruto={}
+    for b,parts in porB.items():
+        poly=unary_union([x.buffer(0) for x in parts]).buffer(0)
+        if poly.is_empty: continue
+        poly=poly.buffer(0.00035,quad_segs=6).buffer(-0.00035,quad_segs=6).buffer(0).intersection(g).buffer(0)
+        if not poly.is_empty: bruto[b]=poly
+    # cada bairro fica com uma peca so: as partes soltas vao para o bairro
+    # vizinho com quem dividem a maior fronteira, para o distrito seguir inteiro
+    princ={}; soltas=[]
+    for b,poly in bruto.items():
+        if poly.geom_type=='MultiPolygon':
+            gs=sorted(poly.geoms,key=lambda x:-x.area)
+            meus=[Point(p['lo'],p['la']) for p in dados['pontos'] if p['d']==pr['d'] and p['bc']==b]
+            fica=[gs[0]]+[x for x in gs[1:] if any(x.buffer(0.00015).covers(q) for q in meus)]
+            princ[b]=unary_union(fica).buffer(0)
+            soltas+= [x for x in gs[1:] if x not in fica]
+        else: princ[b]=poly
+    for _ in range(6):
+        if not soltas: break
+        resto=[]
+        for frag in soltas:
+            viz=None; melhor=0
+            for b,poly in princ.items():
+                try: comp=frag.buffer(0.00002).intersection(poly.buffer(0.00002)).length
+                except Exception: comp=0
+                if comp>melhor: melhor=comp; viz=b
+            if viz: princ[viz]=unary_union([princ[viz],frag]).buffer(0)
+            else: resto.append(frag)
+        soltas=resto
+    for b,poly in princ.items():
+        poly=poly.intersection(g).buffer(0)
+        if poly.is_empty: continue
+        simp=poly.simplify(0.00022)
+        if not simp.is_empty and simp.geom_type in ('Polygon','MultiPolygon'): poly=simp
+        geo[(pr['d'],b)]=poly
+        mior=max(poly.geoms,key=lambda x:x.area) if poly.geom_type=='MultiPolygon' else poly
         rp=mior.representative_point()
-        gj=mapping(area)
+        gj=mapping(poly)
         feats.append({'type':'Feature','properties':{'b':b,'d':pr['d'],'sp':SPMAP[pr['d']],'z':ZMAP[pr['d']],
             'cep':ncep.get((pr['d'],b),0),'lat':round(rp.y,6),'lng':round(rp.x,6),
             'cred':0,'pj':0,'pf':0,'vi':0,'nesp':0},
             'geometry':{'type':gj['type'],'coordinates':rnd(gj['coordinates'])}})
 print('poligonos de bairro:',len(feats))
+
+# 3. o credenciado pertence ao bairro cuja area o contem
+porD=collections.defaultdict(list)
+for (dd,b),poly in geo.items(): porD[dd].append((b,poly))
+mud=0
+for p in dados['pontos']:
+    q=Point(p['lo'],p['la'])
+    achou=None
+    for b,poly in porD.get(p['d'],[]):
+        if poly.covers(q): achou=b; break
+    if achou is None and porD.get(p['d']):
+        achou=min(porD[p['d']],key=lambda x:x[1].distance(q))[0]
+    if achou and achou!=p['b']: mud+=1
+    if achou: p['b']=achou
+print('credenciados cujo bairro no mapa difere do bairro do CEP: %d de %d'%(mud,len(dados['pontos'])))
 
 cb=collections.defaultdict(collections.Counter); eb=collections.defaultdict(set)
 cd=collections.defaultdict(collections.Counter); ed=collections.defaultdict(set); ld=collections.defaultdict(set)
