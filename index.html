@@ -205,14 +205,17 @@ function estiloDistrito(f){
 function estiloBairro(f){
   var nm=f.getProperty('b'), z=f.getProperty('z');
   var sel=S.bairro===nm;
-  if(sel) return {fillColor:'#1a73e8',fillOpacity:.26,strokeColor:'#0b3d91',strokeWeight:3.5,strokeOpacity:1,zIndex:6};
-  return {fillColor:ZCOR[z],fillOpacity:S.bairro?.16:.52,strokeColor:'#ffffff',strokeWeight:1,strokeOpacity:.85,zIndex:3};
+  if(sel) return {fillColor:'#1a73e8',fillOpacity:.24,strokeColor:'#0b3d91',strokeWeight:3,strokeOpacity:1,zIndex:6};
+  return {fillColor:ZCOR[z],fillOpacity:S.bairro?.14:.5,strokeColor:'#ffffff',strokeWeight:1.2,strokeOpacity:.9,zIndex:3};
 }
 function limparLabels(){ labels.forEach(function(m){m.setMap(null)}); labels=[] }
-function rotulo(pos,txt,size,cor2){
-  labels.push(new google.maps.Marker({position:pos,map:map,clickable:false,zIndex:50,
-    icon:{path:google.maps.SymbolPath.CIRCLE,scale:.01,fillOpacity:0,strokeOpacity:0},
-    label:{text:txt,fontSize:size,fontWeight:'600',color:cor2,className:'lbl-map'}}));
+function rotulo(pos,txt,size,cor2,aoClicar){
+  var m=new google.maps.Marker({position:pos,map:map,clickable:!!aoClicar,zIndex:50,
+    cursor:aoClicar?'pointer':undefined,
+    icon:{path:google.maps.SymbolPath.CIRCLE,scale:aoClicar?9:.01,fillOpacity:0,strokeOpacity:0},
+    label:{text:txt,fontSize:size,fontWeight:'600',color:cor2,className:'lbl-map'}});
+  if(aoClicar) m.addListener('click',aoClicar);
+  labels.push(m);
 }
 function limparMarkers(){ markers.forEach(function(m){m.setMap(null)}); markers=[] }
 function emFoco(p){
@@ -467,7 +470,7 @@ function desenhaRotulos(){
   } else if(S.nivel==='distrito'){
     itens=AREAS.bairros.features.filter(function(f){return f.properties.d===S.distrito})
       .map(function(f){var p=f.properties;
-        return {lat:p.lat,lng:p.lng,t:p.b,w:CUR.porB[p.d+'|'+p.b]||0}});
+        return {lat:p.lat,lng:p.lng,t:p.b,w:CUR.porB[p.d+'|'+p.b]||0,b:p.b}});
   } else return;
   var proj=map.getProjection(), sc=Math.pow(2,map.getZoom());
   itens.sort(function(a,b){return (b.w-a.w)||a.t.localeCompare(b.t,'pt-BR')});
@@ -498,7 +501,8 @@ function desenhaRotulos(){
       }
     }
     n++;
-    rotulo(pos,txt,fonte,zonaLvl?'#10243a':'#1f2d38');
+    rotulo(pos,txt,fonte,zonaLvl?'#10243a':'#1f2d38',
+      (S.nivel==='distrito'&&it.b)?(function(nb){return function(){irBairro(nb)}})(it.b):null);
   }
   var av=document.getElementById('btnNomes');
   if(av){ av.style.display=itens.length>12?'':'none';
@@ -527,8 +531,10 @@ function montaControles(){
   AREAS.distritos.features.forEach(function(f){ D2Z[f.properties.d]=f.properties.z });
   document.getElementById('sub').textContent=D.meta.mapa+' credenciados em '+D.meta.locais+' endereços · rede de 09/10/2026';
   document.getElementById('foot').innerHTML='Posição pelo CEP (precisão de rua): cada credenciado fica no logradouro do '+
-    'CEP cadastrado, não no número exato. O bairro é o do próprio CEP e os limites de bairro são desenhados a partir '+
-    'da distribuição dos CEPs — todo credenciado aparece dentro do bairro em que está contado. '+
+    'CEP cadastrado, não no número exato. Cidade, zonas e os 96 distritos são limites oficiais. '+
+    'São Paulo não tem limite oficial de bairro: a área de cada bairro aqui cobre as faixas de CEP que os Correios '+
+    'classificam nele, então ela acompanha as ruas do bairro mas pode diferir um pouco de outros mapas. '+
+    'Todo credenciado aparece dentro do bairro em que está contado. '+
     D.meta.semgeo+' credenciados sem coordenada ficaram fora do mapa.';
 }
 function atualiza(){ recompute(); desenhaPontos(); render(); }
