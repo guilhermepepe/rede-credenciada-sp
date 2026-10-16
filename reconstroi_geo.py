@@ -14,7 +14,7 @@ BASE='/home/claude/rede-credenciada-sp/'
 ORIG='/tmp/claude-0/-home-claude-rede-credenciada-sp/0181ac0f-dbc6-5800-b9bf-408f428f8d00/scratchpad/'
 sweep=json.load(open('/home/claude/rede/cep_sweep.json'))
 ok=set(json.load(open(ORIG+'ok.json'))); rec=json.load(open(ORIG+'rec_prefixos.json'))
-areas=json.load(open(ORIG+'areas.bak.json')); dados=json.load(open(ORIG+'dados.bak.json'))
+areas=json.load(open(ORIG+'areas.bak.json')); dados=json.load(open(BASE+'dados_base.json'))
 DIST=[(dict(f['properties']),shape(f['geometry'])) for f in areas['distritos']['features']]
 def distrito_de(la,lo):
     p=Point(lo,la)
