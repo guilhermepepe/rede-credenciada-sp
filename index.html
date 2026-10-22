@@ -276,8 +276,8 @@ function marcaCliente(c){
   cliCirc=new google.maps.Circle({map:map,center:pos,radius:RAIO,clickable:false,zIndex:40,
     strokeColor:CLICOR,strokeOpacity:.9,strokeWeight:2,fillColor:CLICOR,fillOpacity:.09});
   cliMk=new google.maps.Marker({map:map,position:pos,title:c.txt,zIndex:200,
-    icon:{path:google.maps.SymbolPath.CIRCLE,scale:10,fillColor:CLICOR,fillOpacity:1,
-      strokeColor:'#ffffff',strokeWeight:3},
+    icon:{path:google.maps.SymbolPath.CIRCLE,scale:9,fillColor:CLICOR,fillOpacity:1,
+      strokeColor:'#ffffff',strokeWeight:3,labelOrigin:new google.maps.Point(0,2.6)},
     label:{text:'Cliente',fontSize:'11px',fontWeight:'700',color:'#4c1d95',className:'lbl-map'}});
   map.fitBounds(cliCirc.getBounds(),60);
   render();
