@@ -49,12 +49,11 @@ input,select{font-family:inherit;font-size:13px;width:100%;padding:7px 10px;bord
 .cli .sub{font-size:11.5px;color:var(--ink-2);line-height:1.45}
 .cli .acoes{margin-top:8px;display:flex;gap:8px;align-items:center}
 .cli button{font-family:inherit;font-size:11.5px;background:none;border:0;color:#6d28d9;cursor:pointer;padding:0;text-decoration:underline}
-.cli .rede{margin-top:10px;display:flex;flex-wrap:wrap;gap:6px}
-.cli .rede .lbl{width:100%}
-.cli .rede button{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;padding:5px 11px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--ink-2);text-decoration:none}
-.cli .rede button svg{width:13px;height:13px;flex:none;overflow:visible}
-.cli .rede button b{font-variant-numeric:tabular-nums}
-.cli .rede button[aria-pressed="true"]{background:var(--c);border-color:var(--cb);color:#1f1200;font-weight:600}
+.rede .bt{display:flex;flex-wrap:wrap;gap:6px}
+.rede button{display:inline-flex;align-items:center;gap:6px;font-family:inherit;font-size:11.5px;padding:6px 11px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--ink-2);cursor:pointer}
+.rede button svg{width:13px;height:13px;flex:none;overflow:visible}
+.rede button b{font-variant-numeric:tabular-nums}
+.rede button[aria-pressed="true"]{background:var(--c);border-color:var(--cb);color:#1f1200;font-weight:600}
 .item.cn{border-left:3px solid var(--c);padding-left:13px}
 .sect.cn{color:var(--c)}
 .filtros{display:flex;flex-direction:column;gap:9px}
@@ -142,8 +141,8 @@ body.ff .maisf::after{content:"▴"}
  .item{padding:13px 16px}
  .item .n{font-size:14px}
  .row{padding:12px 16px}
- .cli .acoes button,.cli .rede button{min-height:42px;font-size:13.5px;padding:0 14px}
- .cli .rede button{width:100%}
+ .cli .acoes button{min-height:40px;font-size:13.5px}
+ .rede button{min-height:42px;font-size:13.5px;padding:0 14px;flex:1 1 44%;justify-content:center}
  .iw{min-width:0;max-width:64vw}
  .sug button{padding:12px 13px}
  .crumb{padding:9px 14px;font-size:12.5px}
@@ -167,9 +166,10 @@ body.ff .maisf::after{content:"▴"}
       <input id="raio" type="range" min="200" max="5000" step="100" value="500">
       <div class="esc"><span>200 m</span><span>5 km</span></div>
     </div>
-    <div><span class="lbl">Buscar credenciado</span><input id="q" type="search" placeholder="nome, rua, bairro ou CEP" autocomplete="off"></div>
-    <button type="button" class="maisf" id="maisf" aria-expanded="false">Filtros de tipo e especialidade</button>
+    <div class="rede" id="redes" hidden><span class="lbl">Concorrentes no raio</span><div class="bt" id="redesBt"></div></div>
+    <button type="button" class="maisf" id="maisf" aria-expanded="false">Buscar credenciado e filtros</button>
     <div class="filtros" id="filtros">
+      <div><span class="lbl">Buscar credenciado</span><input id="q" type="search" placeholder="nome, rua, bairro ou CEP" autocomplete="off"></div>
       <div><span class="lbl">Tipo</span><div class="chips" id="tipos"></div></div>
       <div><span class="lbl">Especialidade</span><select id="esp"><option value="-1">Todas as especialidades</option></select></div>
     </div>
@@ -532,12 +532,7 @@ function render(){
       ' da nossa rede num raio de '+fmtRaio(RAIO)+'</div>'+
       '<div class="acoes"><button type="button" id="cliZoom">Ver no mapa</button>'+
       '<button type="button" id="cliLimpa">Remover</button></div>'+
-      '<div class="rede"><span class="lbl" style="margin-bottom:6px">Concorrentes no raio</span>'+
-      REDES.map(function(r,i){
-        return '<button type="button" data-rede="'+i+'" aria-pressed="'+(r.on?'true':'false')+'"'+
-          ' style="--c:'+r.cor+';--cb:'+r.borda+'">'+svgRede(r)+esc(r.nome)+
-          (r.dados?' <b>'+pertoRede(r).length+'</b>':' \u2014 carregando\u2026')+'</button>'}).join('')+
-      '</div></div>';
+      '</div>';
     if(pr.length) h+=pr.map(function(x){
       return '<div class="item" data-pt="'+esc(x.p.n)+'">'+
         '<div class="n">'+esc(x.p.n)+'</div>'+
@@ -653,8 +648,6 @@ function render(){
   if(bz) bz.onclick=function(){ if(cliCirc) map.fitBounds(cliCirc.getBounds(),60) };
   var bl=document.getElementById('cliLimpa');
   if(bl) bl.onclick=limpaCliente;
-  Array.from(pane.querySelectorAll('[data-rede]')).forEach(function(b){b.onclick=function(){
-    var r=REDES[+b.getAttribute('data-rede')]; if(r&&r.dados){ r.on=!r.on; render() }}});
   Array.from(pane.querySelectorAll('[data-cn]')).forEach(function(b){b.onclick=function(){
     var v=b.getAttribute('data-cn'), i=+v.slice(0,v.indexOf('|')), nm=v.slice(v.indexOf('|')+1);
     var r=REDES[i]; if(!r) return;
@@ -670,10 +663,21 @@ function render(){
   if(layZ){ layZ.revertStyle(); layZ.setStyle(estiloZona) }
   if(layD){ layD.revertStyle(); layD.setStyle(estiloDistrito) }
   if(layB){ layB.revertStyle(); layB.setStyle(estiloBairro) }
+  atualizaRedes();
   desenhaConc();
   desenhaRotulos();
 }
 function dt(k,v){return '<dl class="dt"><dt>'+k+'</dt><dd>'+v+'</dd></dl>'}
+function atualizaRedes(){
+  var bl=document.getElementById('redes'); if(!bl) return;
+  bl.hidden=!CLI;
+  REDES.forEach(function(r){
+    if(!r.bt) return;
+    r.bt.innerHTML=svgRede(r)+esc(r.nome)+(r.dados?' <b>'+pertoRede(r).length+'</b>':' \u2014 \u2026');
+    r.bt.setAttribute('aria-pressed',r.on?'true':'false');
+    r.bt.disabled=!r.dados;
+  });
+}
 var TIPel=null, TIPt=null;
 function showTip(txt,ev){
   if(!TIPel) TIPel=document.getElementById('tip');
@@ -751,6 +755,15 @@ function montaControles(){
   D.esp.forEach(function(e,i){var o=document.createElement('option'); o.value=i; o.textContent=e; sel.appendChild(o)});
   sel.onchange=function(){S.esp=+this.value; atualiza()};
   montaAutocomplete();
+  var bt=document.getElementById('redesBt');
+  REDES.forEach(function(r,i){
+    var b=document.createElement('button'); b.type='button';
+    b.setAttribute('data-rede',i); b.setAttribute('aria-pressed','false');
+    b.style.setProperty('--c',r.cor); b.style.setProperty('--cb',r.borda);
+    b.onclick=function(){ if(r.dados){ r.on=!r.on; render() } };
+    r.bt=b; bt.appendChild(b);
+  });
+  atualizaRedes();
   var mf=document.getElementById('maisf');
   if(mf) mf.onclick=function(){
     var on=document.body.classList.toggle('ff');
