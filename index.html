@@ -51,7 +51,7 @@ input,select{font-family:inherit;font-size:13px;width:100%;padding:7px 10px;bord
 .cli button{font-family:inherit;font-size:11.5px;background:none;border:0;color:#6d28d9;cursor:pointer;padding:0;text-decoration:underline}
 .cli .rede{margin-top:9px}
 .cli .rede button{font-size:11px;padding:4px 10px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--ink-2);text-decoration:none}
-.cli .rede button[aria-pressed="true"]{background:#0f766e;border-color:#0f766e;color:#fff}
+.cli .rede button[aria-pressed="true"]{background:#E69F00;border-color:#a87400;color:#2b1c00;font-weight:600}
 .item.am{border-left:3px solid #0f766e;padding-left:13px}
 .item.am .m{color:#0f766e}
 .sect.am{color:#0f766e}
@@ -140,7 +140,9 @@ body.ff .maisf::after{content:"▴"}
  .item{padding:13px 16px}
  .item .n{font-size:14px}
  .row{padding:12px 16px}
- .cli .acoes button,.cli .rede button{min-height:34px;font-size:13px}
+ .cli .acoes button,.cli .rede button{min-height:42px;font-size:13.5px;padding:0 14px}
+ .cli .rede button{width:100%}
+ .iw{min-width:0;max-width:64vw}
  .sug button{padding:12px 13px}
  .crumb{padding:9px 14px;font-size:12.5px}
  .crumb button{padding:3px 0}
@@ -202,7 +204,15 @@ var ZCOR={'Zona Norte':'#cfe3f5','Zona Leste':'#f8ddca','Zona Sul':'#ddd0f0','Zo
 var ZSTR={'Zona Norte':'#0072B2','Zona Leste':'#D55E00','Zona Sul':'#7A3FB5','Zona Oeste':'#4A5560','Centro':'#B38600'};
 var PONTO='#0072B2', CIDADE_STR='#334155';
 /* formas: circulo = nossa rede, triangulo = cliente, X = concorrente */
+var TOQUE=(window.matchMedia&&window.matchMedia('(pointer:coarse)').matches)||('ontouchstart' in window);
 var SVG_TRI='M 0,-11 L 9.5,6.5 L -9.5,6.5 Z';
+/* no toque o dedo cobre ~44px: cada ponto ganha um alvo invisivel maior */
+function alvoToque(pos,aoClicar,z){
+  var h=new google.maps.Marker({position:pos,map:map,zIndex:z,cursor:'pointer',
+    icon:{path:google.maps.SymbolPath.CIRCLE,scale:15,fillOpacity:0,strokeOpacity:0}});
+  h.addListener('click',aoClicar);
+  return h;
+}
 var SVG_X='M -2,-6 L 2,-6 L 2,-2 L 6,-2 L 6,2 L 2,2 L 2,6 L -2,6 L -2,2 L -6,2 L -6,-2 L -2,-2 Z';
 function zc(d){ return ZCOR[D2Z[d]]||'#cbd5e1' }
 function zs(d){ return ZSTR[D2Z[d]]||'#94a3b8' }
@@ -304,11 +314,13 @@ function desenhaPontos(){
   var scf=Math.max(3.6,sc-2.2), swf=Math.max(.9,sw-.8);
   CUR.vis.forEach(function(p){
     var f=emFoco(p);
-    var m=new google.maps.Marker({position:{lat:p.la,lng:p.lo},map:map,title:p.n,zIndex:f?80:60,
+    var pos={lat:p.la,lng:p.lo}, abre=function(){ irPonto(p) };
+    var m=new google.maps.Marker({position:pos,map:map,title:p.n,zIndex:f?80:60,clickable:!TOQUE,
       icon:{path:google.maps.SymbolPath.CIRCLE,scale:f?sc:scf,fillColor:PONTO,fillOpacity:f?1:.42,
         strokeColor:'#fff',strokeWeight:f?sw:swf,strokeOpacity:f?1:.65}});
-    m.addListener('click',function(){ irPonto(p) });
+    if(!TOQUE) m.addListener('click',abre);
     markers.push(m);
+    if(TOQUE) markers.push(alvoToque(pos,abre,f?79:59));
   });
 }
 /* ---------- endereço do cliente ---------- */
@@ -349,11 +361,13 @@ function desenhaAmil(){
   limparAmil();
   if(!S.amil||!CLI||!AMIL||!map) return;
   pertoAmil().forEach(function(x){
-    var m=new google.maps.Marker({position:{lat:x.p.la,lng:x.p.lo},map:map,title:x.p.n,zIndex:70,
-      icon:{path:SVG_X,scale:.82,rotation:45,fillColor:AMILCOR,fillOpacity:1,
+    var pos={lat:x.p.la,lng:x.p.lo}, abre=function(){ abreAmil(x) };
+    var m=new google.maps.Marker({position:pos,map:map,title:x.p.n,zIndex:70,clickable:!TOQUE,
+      icon:{path:SVG_X,scale:TOQUE?1.05:.82,rotation:45,fillColor:AMILCOR,fillOpacity:1,
         strokeColor:'#6b4600',strokeWeight:1.1,strokeOpacity:1}});
-    m.addListener('click',function(){ abreAmil(x) });
+    if(!TOQUE) m.addListener('click',abre);
     amilMk.push(m);
+    if(TOQUE) amilMk.push(alvoToque(pos,abre,69));
   });
 }
 function abreAmil(x){
