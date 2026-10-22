@@ -30,6 +30,21 @@ body{font-family:var(--f);font-size:14px;color:var(--ink);background:var(--bg);d
 .ctl{padding:11px 16px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:9px}
 .lbl{font-size:10px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);display:block;margin-bottom:5px}
 input,select{font-family:inherit;font-size:13px;width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:5px;background:var(--surface-2);color:var(--ink)}
+.ac{position:relative}
+.sug{position:absolute;left:0;right:0;top:100%;z-index:60;background:var(--surface);border:1px solid var(--line);
+  border-radius:0 0 6px 6px;box-shadow:0 8px 20px rgba(16,36,58,.14);max-height:260px;overflow:auto;display:none}
+.sug.on{display:block}
+.sug button{display:block;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);
+  padding:8px 11px;font-family:inherit;font-size:12.5px;color:var(--ink);cursor:pointer;line-height:1.35}
+.sug button:last-child{border-bottom:0}
+.sug button:hover,.sug button.sel{background:var(--surface-2)}
+.sug .s2{display:block;font-size:11px;color:var(--ink-3);margin-top:1px}
+.sug .vazio{padding:9px 11px;font-size:12px;color:var(--ink-3)}
+.cli{padding:12px 16px;border-bottom:1px solid var(--line);background:#f7f5ff}
+.cli h3{margin:0 0 2px;font-size:13px;font-weight:600;color:#4c1d95}
+.cli .sub{font-size:11.5px;color:var(--ink-2);line-height:1.45}
+.cli .acoes{margin-top:8px;display:flex;gap:8px;align-items:center}
+.cli button{font-family:inherit;font-size:11.5px;background:none;border:0;color:#6d28d9;cursor:pointer;padding:0;text-decoration:underline}
 .chips{display:flex;flex-wrap:wrap;gap:5px}
 .chip{display:inline-flex;align-items:center;gap:5px;background:var(--surface-2);border:1px solid var(--line);border-radius:999px;padding:4px 10px;font-size:11.5px;color:var(--ink-2);cursor:pointer;font-family:inherit}
 .chip[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--ink);font-weight:500}
@@ -100,6 +115,10 @@ input,select{font-family:inherit;font-size:13px;width:100%;padding:7px 10px;bord
   <div class="hd"><h1>Rede Credenciada — São Paulo</h1><p id="sub"></p></div>
   <div class="crumb" id="crumb"></div>
   <div class="ctl">
+    <div class="ac"><span class="lbl">Endereço do cliente</span>
+      <input id="cli" type="search" placeholder="rua e número, bairro ou CEP" autocomplete="off">
+      <div id="sug" class="sug"></div>
+    </div>
     <div><span class="lbl">Buscar credenciado</span><input id="q" type="search" placeholder="nome, rua, bairro ou CEP" autocomplete="off"></div>
     <div><span class="lbl">Tipo</span><div class="chips" id="tipos"></div></div>
     <div><span class="lbl">Especialidade</span><select id="esp"><option value="-1">Todas as especialidades</option></select></div>
@@ -129,6 +148,8 @@ var TIPOS=[{n:'Clínica (PJ)',c:'#eb6834'},{n:'Dentista (PF)',c:'#1baf7a'},{n:'P
 var S={nivel:'cidade',zona:null,distrito:null,bairro:null,selPt:null,tipos:[true,true,true],esp:-1,q:'',todosNomes:false};
 var CUR={}, markers=[], labels=[], SP={lat:-23.5505,lng:-46.6333};
 var layZ=null, layC=null, D2Z={};
+var CLI=null, cliMk=null, cliCirc=null, RAIO=500;
+var CLICOR='#6d28d9';
 var ZCOR={'Zona Norte':'#9cc2ec','Zona Leste':'#f3b79a','Zona Sul':'#86ccb0','Zona Oeste':'#bdb5ee','Centro':'#f2d89a'};
 var ZSTR={'Zona Norte':'#2a78d6','Zona Leste':'#d95926','Zona Sul':'#199e70','Zona Oeste':'#6250d6','Centro':'#c98500'};
 var PONTO='#b3261e', CIDADE_STR='#334155';
@@ -218,6 +239,7 @@ function rotulo(pos,txt,size,cor2,aoClicar){
   labels.push(m);
 }
 function limparMarkers(){ markers.forEach(function(m){m.setMap(null)}); markers=[] }
+function km(a,b,c,d){ var R=111.32; return Math.hypot((a-c)*R,(b-d)*R*Math.cos((a+c)/2*Math.PI/180)) }
 function emFoco(p){
   if(S.nivel==='cidade') return true;
   if(S.nivel==='zona') return D2Z[p.d]===S.zona;
@@ -237,6 +259,33 @@ function desenhaPontos(){
     m.addListener('click',function(){ irPonto(p) });
     markers.push(m);
   });
+}
+/* ---------- endereço do cliente ---------- */
+function limpaCliente(){
+  CLI=null;
+  if(cliMk){cliMk.setMap(null); cliMk=null}
+  if(cliCirc){cliCirc.setMap(null); cliCirc=null}
+  var i=document.getElementById('cli'); if(i) i.value='';
+  render();
+}
+function marcaCliente(c){
+  CLI=c;
+  if(cliMk) cliMk.setMap(null);
+  if(cliCirc) cliCirc.setMap(null);
+  var pos={lat:c.la,lng:c.lo};
+  cliCirc=new google.maps.Circle({map:map,center:pos,radius:RAIO,clickable:false,zIndex:40,
+    strokeColor:CLICOR,strokeOpacity:.9,strokeWeight:2,fillColor:CLICOR,fillOpacity:.09});
+  cliMk=new google.maps.Marker({map:map,position:pos,title:c.txt,zIndex:200,
+    icon:{path:google.maps.SymbolPath.CIRCLE,scale:10,fillColor:CLICOR,fillOpacity:1,
+      strokeColor:'#ffffff',strokeWeight:3},
+    label:{text:'Cliente',fontSize:'11px',fontWeight:'700',color:'#4c1d95',className:'lbl-map'}});
+  map.fitBounds(cliCirc.getBounds(),60);
+  render();
+}
+function perto(){
+  if(!CLI||!CUR.vis) return [];
+  return CUR.vis.map(function(p){return {p:p,d:km(CLI.la,CLI.lo,p.la,p.lo)*1000}})
+    .filter(function(x){return x.d<=RAIO}).sort(function(a,b){return a.d-b.d});
 }
 function bounds(feat){
   var b=new google.maps.LatLngBounds();
@@ -340,6 +389,19 @@ function legendaZ(){
 function render(){
   recompute(); crumb(); hideTip();
   var pane=document.getElementById('pane'), h='';
+  if(CLI){
+    var pr=perto();
+    h+='<div class="cli"><h3>'+esc(CLI.tit)+'</h3><div class="sub">'+esc(CLI.sub)+'</div>'+
+      '<div class="sub" style="margin-top:7px"><b>'+pr.length+'</b> credenciado'+(pr.length===1?'':'s')+
+      ' num raio de 500 m</div>'+
+      '<div class="acoes"><button type="button" id="cliZoom">Ver no mapa</button>'+
+      '<button type="button" id="cliLimpa">Remover</button></div></div>';
+    if(pr.length) h+=pr.map(function(x){
+      return '<div class="item" data-pt="'+esc(x.p.n)+'">'+
+        '<div class="n">'+esc(x.p.n)+'</div>'+
+        '<div class="m">'+Math.round(x.d)+' m · '+esc(TIPOS[x.p.t].n)+' · '+esc(x.p.b)+'</div>'+
+        '<div class="a">'+esc(x.p.e)+'</div></div>'}).join('');
+  }
   if(S.nivel==='cidade'){
     var zs=AREAS.zonas.features.map(function(f){return f.properties})
       .sort(function(a,b){return (CUR.porZ[b.z]||0)-(CUR.porZ[a.z]||0)});
@@ -433,6 +495,10 @@ function render(){
         '<div class="a">'+esc(x.e)+'</div></div>'}).join('');
   }
   pane.innerHTML=h;
+  var bz=document.getElementById('cliZoom');
+  if(bz) bz.onclick=function(){ if(cliCirc) map.fitBounds(cliCirc.getBounds(),60) };
+  var bl=document.getElementById('cliLimpa');
+  if(bl) bl.onclick=limpaCliente;
   Array.from(pane.querySelectorAll('[data-z]')).forEach(function(b){b.onclick=function(){irZona(b.getAttribute('data-z'))}});
   Array.from(pane.querySelectorAll('[data-d]')).forEach(function(b){b.onclick=function(){irDistrito(b.getAttribute('data-d'))}});
   Array.from(pane.querySelectorAll('[data-b]')).forEach(function(b){b.onclick=function(){irBairro(b.getAttribute('data-b'))}});
@@ -521,6 +587,7 @@ function montaControles(){
   var sel=document.getElementById('esp');
   D.esp.forEach(function(e,i){var o=document.createElement('option'); o.value=i; o.textContent=e; sel.appendChild(o)});
   sel.onchange=function(){S.esp=+this.value; atualiza()};
+  montaAutocomplete();
   var q=document.getElementById('q'), tq;
   q.oninput=function(){clearTimeout(tq); var v=this.value.trim().toLowerCase(); tq=setTimeout(function(){S.q=v; atualiza()},170)};
   document.getElementById('limpar').onclick=function(){
@@ -536,7 +603,62 @@ function montaControles(){
     'São Paulo não tem limite oficial de bairro: a área de cada bairro aqui cobre as faixas de CEP que os Correios '+
     'classificam nele, então ela acompanha as ruas do bairro mas pode diferir um pouco de outros mapas. '+
     'Todo credenciado aparece dentro do bairro em que está contado. '+
-    D.meta.semgeo+' credenciados sem coordenada ficaram fora do mapa.';
+    D.meta.semgeo+' credenciados sem coordenada ficaram fora do mapa. '+
+    'Busca de endereço do cliente por Photon/OpenStreetMap.';
+}
+/* ---------- autocomplete de endereço (Photon / OpenStreetMap) ---------- */
+function montaAutocomplete(){
+  var inp=document.getElementById('cli'), cx=document.getElementById('sug');
+  if(!inp||!cx) return;
+  var t=null, seq=0, itens=[], sel=-1;
+  function fecha(){ cx.classList.remove('on'); cx.innerHTML=''; itens=[]; sel=-1 }
+  function rotulo(f){
+    var p=f.properties, c=f.geometry.coordinates;
+    var rua=[(p.housenumber?p.housenumber+' ':'')+(p.street||''),p.name&&!p.street?p.name:''].filter(Boolean).join(' ');
+    if(!rua) rua=p.name||p.street||'';
+    var sub=[p.district||p.suburb||'',p.city||p.county||'',p.postcode||''].filter(Boolean).join(' · ');
+    return {tit:rua||sub,sub:sub,la:c[1],lo:c[0],txt:(rua?rua+' — ':'')+sub};
+  }
+  function pinta(){
+    if(!itens.length){ cx.innerHTML='<div class="vazio">Nenhum endereço encontrado</div>'; cx.classList.add('on'); return }
+    cx.innerHTML=itens.map(function(it,i){
+      return '<button type="button" data-i="'+i+'"'+(i===sel?' class="sel"':'')+'>'+esc(it.tit)+
+             '<span class="s2">'+esc(it.sub)+'</span></button>'}).join('');
+    cx.classList.add('on');
+    Array.from(cx.querySelectorAll('button')).forEach(function(b){
+      b.onclick=function(){ escolhe(+b.getAttribute('data-i')) };
+    });
+  }
+  function escolhe(i){
+    var it=itens[i]; if(!it) return;
+    inp.value=it.txt; fecha(); marcaCliente(it);
+  }
+  function busca(v){
+    var meu=++seq;
+    var u='https://photon.komoot.io/api/?limit=6&lat=-23.55&lon=-46.63&bbox=-47.10,-24.10,-46.10,-23.20&q='+encodeURIComponent(v);
+    fetch(u).then(function(r){return r.json()}).then(function(j){
+      if(meu!==seq) return;
+      var vistos={};
+      itens=(j.features||[]).map(rotulo).filter(function(it){
+        var k=it.tit+'|'+it.sub; if(vistos[k]) return false; vistos[k]=1; return !!it.tit });
+      sel=-1; pinta();
+    }).catch(function(){ if(meu===seq){ itens=[]; pinta() } });
+  }
+  inp.addEventListener('input',function(){
+    var v=inp.value.trim();
+    clearTimeout(t);
+    if(v.length<4){ fecha(); return }
+    t=setTimeout(function(){ busca(v) },350);
+  });
+  inp.addEventListener('keydown',function(e){
+    if(!cx.classList.contains('on')) return;
+    if(e.key==='ArrowDown'||e.key==='ArrowUp'){
+      e.preventDefault(); sel=Math.max(0,Math.min(itens.length-1,sel+(e.key==='ArrowDown'?1:-1))); pinta();
+      var b=cx.querySelector('button.sel'); if(b) b.scrollIntoView({block:'nearest'});
+    } else if(e.key==='Enter'){ e.preventDefault(); escolhe(sel<0?0:sel) }
+    else if(e.key==='Escape'){ fecha() }
+  });
+  document.addEventListener('click',function(e){ if(!cx.contains(e.target)&&e.target!==inp) fecha() });
 }
 function atualiza(){ recompute(); desenhaPontos(); render(); }
 
