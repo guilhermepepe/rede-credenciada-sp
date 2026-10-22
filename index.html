@@ -45,6 +45,12 @@ input,select{font-family:inherit;font-size:13px;width:100%;padding:7px 10px;bord
 .cli .sub{font-size:11.5px;color:var(--ink-2);line-height:1.45}
 .cli .acoes{margin-top:8px;display:flex;gap:8px;align-items:center}
 .cli button{font-family:inherit;font-size:11.5px;background:none;border:0;color:#6d28d9;cursor:pointer;padding:0;text-decoration:underline}
+.cli .rede{margin-top:9px}
+.cli .rede button{font-size:11px;padding:4px 10px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--ink-2);text-decoration:none}
+.cli .rede button[aria-pressed="true"]{background:#0f766e;border-color:#0f766e;color:#fff}
+.item.am{border-left:3px solid #0f766e;padding-left:13px}
+.item.am .m{color:#0f766e}
+.sect.am{color:#0f766e}
 .chips{display:flex;flex-wrap:wrap;gap:5px}
 .chip{display:inline-flex;align-items:center;gap:5px;background:var(--surface-2);border:1px solid var(--line);border-radius:999px;padding:4px 10px;font-size:11.5px;color:var(--ink-2);cursor:pointer;font-family:inherit}
 .chip[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--ink);font-weight:500}
@@ -145,11 +151,12 @@ input,select{font-family:inherit;font-size:13px;width:100%;padding:7px 10px;bord
 "use strict";
 var D=null, AREAS=null, map=null, info=null, layD=null, layB=null;
 var TIPOS=[{n:'Clínica (PJ)',c:'#eb6834'},{n:'Dentista (PF)',c:'#1baf7a'},{n:'Profissional vinculado',c:'#6250d6'}];
-var S={nivel:'cidade',zona:null,distrito:null,bairro:null,selPt:null,tipos:[true,true,true],esp:-1,q:'',todosNomes:false};
+var S={nivel:'cidade',zona:null,distrito:null,bairro:null,selPt:null,tipos:[true,true,true],esp:-1,q:'',todosNomes:false,amil:false};
 var CUR={}, markers=[], labels=[], SP={lat:-23.5505,lng:-46.6333};
 var layZ=null, layC=null, D2Z={};
 var CLI=null, cliMk=null, cliCirc=null, RAIO=500;
 var CLICOR='#6d28d9';
+var AMIL=null, amilMk=[], AMILCOR='#0f766e';
 var ZCOR={'Zona Norte':'#9cc2ec','Zona Leste':'#f3b79a','Zona Sul':'#86ccb0','Zona Oeste':'#bdb5ee','Centro':'#f2d89a'};
 var ZSTR={'Zona Norte':'#2a78d6','Zona Leste':'#d95926','Zona Sul':'#199e70','Zona Oeste':'#6250d6','Centro':'#c98500'};
 var PONTO='#b3261e', CIDADE_STR='#334155';
@@ -287,6 +294,38 @@ function perto(){
   return CUR.vis.map(function(p){return {p:p,d:km(CLI.la,CLI.lo,p.la,p.lo)*1000}})
     .filter(function(x){return x.d<=RAIO}).sort(function(a,b){return a.d-b.d});
 }
+/* ---------- rede Amil Dental dentro do raio ---------- */
+function pertoAmil(){
+  if(!CLI||!AMIL) return [];
+  return AMIL.pontos.map(function(p){return {p:p,d:km(CLI.la,CLI.lo,p.la,p.lo)*1000}})
+    .filter(function(x){return x.d<=RAIO}).sort(function(a,b){return a.d-b.d});
+}
+function limparAmil(){ amilMk.forEach(function(m){m.setMap(null)}); amilMk=[] }
+function desenhaAmil(){
+  limparAmil();
+  if(!S.amil||!CLI||!AMIL||!map) return;
+  pertoAmil().forEach(function(x){
+    var m=new google.maps.Marker({position:{lat:x.p.la,lng:x.p.lo},map:map,title:x.p.n,zIndex:70,
+      icon:{path:google.maps.SymbolPath.CIRCLE,scale:6,fillColor:AMILCOR,fillOpacity:.95,
+        strokeColor:'#ffffff',strokeWeight:1.6,strokeOpacity:1}});
+    m.addListener('click',function(){ abreAmil(x) });
+    amilMk.push(m);
+  });
+}
+function abreAmil(x){
+  var q=encodeURIComponent(x.p.e+', Sao Paulo, SP');
+  info.setContent('<div class="iw"><h3>'+esc(x.p.n)+'</h3>'+
+    '<dl><dt>Rede</dt><dd>Amil Dental</dd>'+
+    '<dt>Endere\u00e7o</dt><dd>'+esc(x.p.e)+'</dd>'+
+    '<dt>Bairro</dt><dd>'+esc(x.p.b||'\u2014')+'</dd>'+
+    (x.p.f?'<dt>Telefone</dt><dd>'+esc(x.p.f)+'</dd>':'')+
+    '<dt>Dist\u00e2ncia</dt><dd>'+Math.round(x.d)+' m do cliente</dd></dl>'+
+    ((x.p.es&&x.p.es.length)?'<div class="esps" style="padding:9px 0 0;border:0">'+
+      x.p.es.map(function(i){return '<span>'+esc(AMIL.esp[i])+'</span>'}).join('')+'</div>':'')+
+    '<div class="acts"><a class="p" href="https://www.google.com/maps/search/?api=1&query='+q+
+    '" target="_blank" rel="noopener">Google Maps \u2197</a></div></div>');
+  info.setPosition({lat:x.p.la,lng:x.p.lo}); info.open(map);
+}
 function bounds(feat){
   var b=new google.maps.LatLngBounds();
   feat.getGeometry().forEachLatLng(function(ll){b.extend(ll)});
@@ -390,17 +429,30 @@ function render(){
   recompute(); crumb(); hideTip();
   var pane=document.getElementById('pane'), h='';
   if(CLI){
-    var pr=perto();
+    var pr=perto(), pa=pertoAmil();
     h+='<div class="cli"><h3>'+esc(CLI.tit)+'</h3><div class="sub">'+esc(CLI.sub)+'</div>'+
       '<div class="sub" style="margin-top:7px"><b>'+pr.length+'</b> credenciado'+(pr.length===1?'':'s')+
-      ' num raio de 500 m</div>'+
+      ' da nossa rede num raio de 500 m</div>'+
       '<div class="acoes"><button type="button" id="cliZoom">Ver no mapa</button>'+
-      '<button type="button" id="cliLimpa">Remover</button></div></div>';
+      '<button type="button" id="cliLimpa">Remover</button></div>'+
+      (AMIL===false?'':
+        '<div class="rede"><button type="button" id="btnAmil" aria-pressed="'+(S.amil?'true':'false')+'">'+
+        (AMIL?('Rede Amil Dental no raio ('+pa.length+')'):'Rede Amil Dental \u2014 carregando\u2026')+
+        '</button></div>')+'</div>';
     if(pr.length) h+=pr.map(function(x){
       return '<div class="item" data-pt="'+esc(x.p.n)+'">'+
         '<div class="n">'+esc(x.p.n)+'</div>'+
         '<div class="m">'+Math.round(x.d)+' m · '+esc(TIPOS[x.p.t].n)+' · '+esc(x.p.b)+'</div>'+
         '<div class="a">'+esc(x.p.e)+'</div></div>'}).join('');
+    if(S.amil&&AMIL){
+      h+='<div class="sect am">'+(pa.length?pa.length+' credenciado'+(pa.length===1?'':'s')+
+        ' Amil Dental no raio':'Nenhum credenciado Amil Dental no raio')+'</div>';
+      h+=pa.map(function(x){
+        return '<div class="item am" data-am="'+esc(x.p.n)+'">'+
+          '<div class="n">'+esc(x.p.n)+'</div>'+
+          '<div class="m">'+Math.round(x.d)+' m \u00b7 '+esc(x.p.b||'')+'</div>'+
+          '<div class="a">'+esc(x.p.e)+'</div></div>'}).join('');
+    }
   }
   if(S.nivel==='cidade'){
     var zs=AREAS.zonas.features.map(function(f){return f.properties})
@@ -499,6 +551,11 @@ function render(){
   if(bz) bz.onclick=function(){ if(cliCirc) map.fitBounds(cliCirc.getBounds(),60) };
   var bl=document.getElementById('cliLimpa');
   if(bl) bl.onclick=limpaCliente;
+  var ba=document.getElementById('btnAmil');
+  if(ba) ba.onclick=function(){ S.amil=!S.amil; render() };
+  Array.from(pane.querySelectorAll('[data-am]')).forEach(function(b){b.onclick=function(){
+    var x=pertoAmil().filter(function(y){return y.p.n===b.getAttribute('data-am')})[0];
+    if(x){ map.panTo({lat:x.p.la,lng:x.p.lo}); abreAmil(x) }}});
   Array.from(pane.querySelectorAll('[data-z]')).forEach(function(b){b.onclick=function(){irZona(b.getAttribute('data-z'))}});
   Array.from(pane.querySelectorAll('[data-d]')).forEach(function(b){b.onclick=function(){irDistrito(b.getAttribute('data-d'))}});
   Array.from(pane.querySelectorAll('[data-b]')).forEach(function(b){b.onclick=function(){irBairro(b.getAttribute('data-b'))}});
@@ -509,6 +566,7 @@ function render(){
   if(layZ){ layZ.revertStyle(); layZ.setStyle(estiloZona) }
   if(layD){ layD.revertStyle(); layD.setStyle(estiloDistrito) }
   if(layB){ layB.revertStyle(); layB.setStyle(estiloBairro) }
+  desenhaAmil();
   desenhaRotulos();
 }
 function dt(k,v){return '<dl class="dt"><dt>'+k+'</dt><dd>'+v+'</dd></dl>'}
@@ -741,6 +799,9 @@ Promise.all([
 ]).then(function(a){
   D=a[0]; AREAS=a[1];
   montaControles(); recompute();
+  fetch('amil.json',{cache:'no-cache'}).then(function(r){return r.json()})
+    .then(function(j){ AMIL=j; if(CLI) render() })
+    .catch(function(){ AMIL=false; if(CLI) render() });
   document.getElementById('cnt').textContent=D.pontos.length+' credenciados';
   var k=(typeof window.GMAPS_KEY==='string'&&RE_KEY.test(window.GMAPS_KEY.trim()))?window.GMAPS_KEY.trim():null;
   if(k){ loadGoogle(k); return }
