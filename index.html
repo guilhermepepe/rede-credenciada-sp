@@ -55,6 +55,10 @@ input,select{font-family:inherit;font-size:13px;width:100%;padding:7px 10px;bord
 .item.am{border-left:3px solid #0f766e;padding-left:13px}
 .item.am .m{color:#0f766e}
 .sect.am{color:#0f766e}
+.filtros{display:flex;flex-direction:column;gap:9px}
+.maisf{display:none;font-family:inherit;font-size:12px;width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:5px;background:var(--surface-2);color:var(--ink-2);cursor:pointer;text-align:left}
+.maisf::after{content:"▾";float:right}
+body.ff .maisf::after{content:"▴"}
 .chips{display:flex;flex-wrap:wrap;gap:5px}
 .chip{display:inline-flex;align-items:center;gap:5px;background:var(--surface-2);border:1px solid var(--line);border-radius:999px;padding:4px 10px;font-size:11.5px;color:var(--ink-2);cursor:pointer;font-family:inherit}
 .chip[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--ink);font-weight:500}
@@ -100,6 +104,9 @@ input,select{font-family:inherit;font-size:13px;width:100%;padding:7px 10px;bord
 .zkey{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:7px}
 .zkey span{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--ink-2)}
 .zkey i{width:11px;height:11px;border-radius:3px;border:1.5px solid}
+.skey{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:7px}
+.skey span{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--ink-2)}
+.skey svg{width:17px;height:17px;flex:none;overflow:visible}
 .iw{font-family:var(--f);min-width:230px;max-width:290px}
 .iw h3{margin:0 0 6px;font-size:13px;line-height:1.3;font-weight:600}
 .iw dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:3px 9px;font-size:11.5px}
@@ -114,9 +121,33 @@ input,select{font-family:inherit;font-size:13px;width:100%;padding:7px 10px;bord
 #gate button.go{background:var(--accent);color:#fff;border:0;border-radius:5px;padding:9px 18px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;flex:none}
 #gate .err{color:#c5221f;font-size:12.5px;margin-top:10px;display:none}
 #gate .note{font-size:11.5px;color:var(--ink-3);margin-top:14px;line-height:1.6;border-top:1px solid var(--line);padding-top:12px}
-@media (max-width:880px){body{flex-direction:column;overflow:auto}
- #side{width:100%;height:auto;max-height:54vh;border-right:0;border-bottom:1px solid var(--line)}
- #map{height:46vh;flex:none}}
+@media (max-width:880px){
+ html,body{height:100vh;height:100dvh}
+ body{flex-direction:column;overflow:hidden}
+ #side{width:100%;order:1;flex:1 1 auto;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch;
+   border-right:0;border-bottom:1px solid var(--line)}
+ #map{order:2;flex:0 0 44dvh;height:44dvh;min-height:240px}
+ /* 16px evita o zoom automatico do iOS ao focar o campo */
+ input,select{font-size:16px;padding:10px 12px}
+ .maisf{display:block}
+ .filtros{display:none}
+ body.ff .filtros{display:flex}
+ .hd{padding:11px 16px 9px}
+ .hd h1{font-size:15px}
+ .ctl{padding:11px 14px;gap:11px}
+ .rng input[type=range]{height:30px}
+ .chip{padding:8px 13px;font-size:13px}
+ .item{padding:13px 16px}
+ .item .n{font-size:14px}
+ .row{padding:12px 16px}
+ .cli .acoes button,.cli .rede button{min-height:34px;font-size:13px}
+ .sug button{padding:12px 13px}
+ .crumb{padding:9px 14px;font-size:12.5px}
+ .crumb button{padding:3px 0}
+}
+@media (max-width:880px) and (orientation:landscape){
+ #map{flex:0 0 58dvh;height:58dvh}
+}
 </style>
 </head>
 <body>
@@ -133,8 +164,11 @@ input,select{font-family:inherit;font-size:13px;width:100%;padding:7px 10px;bord
       <div class="esc"><span>200 m</span><span>5 km</span></div>
     </div>
     <div><span class="lbl">Buscar credenciado</span><input id="q" type="search" placeholder="nome, rua, bairro ou CEP" autocomplete="off"></div>
-    <div><span class="lbl">Tipo</span><div class="chips" id="tipos"></div></div>
-    <div><span class="lbl">Especialidade</span><select id="esp"><option value="-1">Todas as especialidades</option></select></div>
+    <button type="button" class="maisf" id="maisf" aria-expanded="false">Filtros de tipo e especialidade</button>
+    <div class="filtros" id="filtros">
+      <div><span class="lbl">Tipo</span><div class="chips" id="tipos"></div></div>
+      <div><span class="lbl">Especialidade</span><select id="esp"><option value="-1">Todas as especialidades</option></select></div>
+    </div>
   </div>
   <div id="count"><span id="cnt"></span><button id="limpar" type="button">Limpar filtros</button></div>
   <div id="pane"></div>
@@ -162,11 +196,14 @@ var CUR={}, markers=[], labels=[], SP={lat:-23.5505,lng:-46.6333};
 var layZ=null, layC=null, D2Z={};
 var CLI=null, cliMk=null, cliCirc=null, RAIO=500;
 function fmtRaio(m){ return m<1000 ? m+' m' : (m/1000).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:1})+' km' }
-var CLICOR='#6d28d9';
-var AMIL=null, amilMk=[], AMILCOR='#0f766e';
-var ZCOR={'Zona Norte':'#9cc2ec','Zona Leste':'#f3b79a','Zona Sul':'#86ccb0','Zona Oeste':'#bdb5ee','Centro':'#f2d89a'};
-var ZSTR={'Zona Norte':'#2a78d6','Zona Leste':'#d95926','Zona Sul':'#199e70','Zona Oeste':'#6250d6','Centro':'#c98500'};
-var PONTO='#b3261e', CIDADE_STR='#334155';
+var CLICOR='#009E73';
+var AMIL=null, amilMk=[], AMILCOR='#E69F00';
+var ZCOR={'Zona Norte':'#cfe3f5','Zona Leste':'#f8ddca','Zona Sul':'#ddd0f0','Zona Oeste':'#d9dde2','Centro':'#f7eec6'};
+var ZSTR={'Zona Norte':'#0072B2','Zona Leste':'#D55E00','Zona Sul':'#7A3FB5','Zona Oeste':'#4A5560','Centro':'#B38600'};
+var PONTO='#0072B2', CIDADE_STR='#334155';
+/* formas: circulo = nossa rede, triangulo = cliente, X = concorrente */
+var SVG_TRI='M 0,-11 L 9.5,6.5 L -9.5,6.5 Z';
+var SVG_X='M -2,-6 L 2,-6 L 2,-2 L 6,-2 L 6,2 L 2,2 L 2,6 L -2,6 L -2,2 L -6,2 L -6,-2 L -2,-2 Z';
 function zc(d){ return ZCOR[D2Z[d]]||'#cbd5e1' }
 function zs(d){ return ZSTR[D2Z[d]]||'#94a3b8' }
 var NF=new Intl.NumberFormat('pt-BR');
@@ -290,9 +327,9 @@ function marcaCliente(c){
   cliCirc=new google.maps.Circle({map:map,center:pos,radius:RAIO,clickable:false,zIndex:40,
     strokeColor:CLICOR,strokeOpacity:.9,strokeWeight:2,fillColor:CLICOR,fillOpacity:.09});
   cliMk=new google.maps.Marker({map:map,position:pos,title:c.txt,zIndex:200,
-    icon:{path:google.maps.SymbolPath.CIRCLE,scale:9,fillColor:CLICOR,fillOpacity:1,
-      strokeColor:'#ffffff',strokeWeight:3,labelOrigin:new google.maps.Point(0,2.6)},
-    label:{text:'Cliente',fontSize:'11px',fontWeight:'700',color:'#4c1d95',className:'lbl-map'}});
+    icon:{path:SVG_TRI,scale:1.25,fillColor:CLICOR,fillOpacity:1,
+      strokeColor:'#ffffff',strokeWeight:2.5,labelOrigin:new google.maps.Point(0,19)},
+    label:{text:'Cliente',fontSize:'11px',fontWeight:'700',color:'#00634A',className:'lbl-map'}});
   map.fitBounds(cliCirc.getBounds(),60);
   render();
 }
@@ -313,8 +350,8 @@ function desenhaAmil(){
   if(!S.amil||!CLI||!AMIL||!map) return;
   pertoAmil().forEach(function(x){
     var m=new google.maps.Marker({position:{lat:x.p.la,lng:x.p.lo},map:map,title:x.p.n,zIndex:70,
-      icon:{path:google.maps.SymbolPath.CIRCLE,scale:6,fillColor:AMILCOR,fillOpacity:.95,
-        strokeColor:'#ffffff',strokeWeight:1.6,strokeOpacity:1}});
+      icon:{path:SVG_X,scale:.82,rotation:45,fillColor:AMILCOR,fillOpacity:1,
+        strokeColor:'#6b4600',strokeWeight:1.1,strokeOpacity:1}});
     m.addListener('click',function(){ abreAmil(x) });
     amilMk.push(m);
   });
@@ -436,6 +473,13 @@ function crumb(){
     };
   });
 }
+function legendaSimb(){
+  return '<div class="legend"><span class="lbl">Como ler o mapa</span><div class="skey">'+
+    '<span><svg viewBox="-12 -12 24 24" aria-hidden="true"><circle cx="0" cy="0" r="7" fill="'+PONTO+'" stroke="#fff" stroke-width="2"/></svg>Nossa rede</span>'+
+    '<span><svg viewBox="-12 -14 24 26" aria-hidden="true"><path d="'+SVG_TRI+'" fill="'+CLICOR+'" stroke="#fff" stroke-width="2"/></svg>Cliente</span>'+
+    '<span><svg viewBox="-11 -11 22 22" aria-hidden="true"><path d="'+SVG_X+'" transform="rotate(45)" fill="'+AMILCOR+'" stroke="#6b4600" stroke-width="1.1"/></svg>Concorrente</span>'+
+    '</div></div>';
+}
 function legendaZ(){
   var ord=['Zona Norte','Zona Leste','Zona Oeste','Zona Sul','Centro'];
   return '<div class="legend"><span class="lbl">Zonas</span><div class="zkey">'+
@@ -474,7 +518,7 @@ function render(){
   if(S.nivel==='cidade'){
     var zs=AREAS.zonas.features.map(function(f){return f.properties})
       .sort(function(a,b){return (CUR.porZ[b.z]||0)-(CUR.porZ[a.z]||0)});
-    h+=legendaZ();
+    h+=legendaSimb()+legendaZ();
     h+='<div class="hint">Todos os '+CUR.vis.length+' credenciados estão no mapa. Clique numa zona — no mapa ou na lista — para ver os distritos dela.</div>';
     h+='<div class="sect">5 zonas</div>';
     h+=zs.map(function(r){var n=CUR.porZ[r.z]||0;
@@ -664,6 +708,11 @@ function montaControles(){
   D.esp.forEach(function(e,i){var o=document.createElement('option'); o.value=i; o.textContent=e; sel.appendChild(o)});
   sel.onchange=function(){S.esp=+this.value; atualiza()};
   montaAutocomplete();
+  var mf=document.getElementById('maisf');
+  if(mf) mf.onclick=function(){
+    var on=document.body.classList.toggle('ff');
+    mf.setAttribute('aria-expanded',on?'true':'false');
+  };
   var rg=document.getElementById('raio'), rv=document.getElementById('raioV');
   var sv=null; try{sv=parseInt(localStorage.getItem('raio'),10)}catch(e){}
   if(sv>=200&&sv<=5000){ RAIO=sv; rg.value=String(sv) }
