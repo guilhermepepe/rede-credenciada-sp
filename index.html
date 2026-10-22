@@ -662,7 +662,10 @@ function montaControles(){
     'classificam nele, então ela acompanha as ruas do bairro mas pode diferir um pouco de outros mapas. '+
     'Todo credenciado aparece dentro do bairro em que está contado. '+
     D.meta.semgeo+' credenciados sem coordenada ficaram fora do mapa. '+
-    'Busca de endereço do cliente por Photon/OpenStreetMap.';
+    'Busca de endereço do cliente por Photon/OpenStreetMap. '+
+    (AMIL?('Rede Amil Dental: '+AMIL.pontos.length+' credenciados na cidade de São Paulo, '+
+      'posicionados por geocodificação do Google — '+
+      'a maioria no número exato, uma minoria no trecho da rua.'):'');
 }
 /* ---------- autocomplete de endereço (Photon / OpenStreetMap) ---------- */
 function montaAutocomplete(){

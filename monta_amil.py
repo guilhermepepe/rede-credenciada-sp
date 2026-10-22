@@ -46,7 +46,8 @@ for r in prep['rows']:
     if not g:
         sem_coord += 1
         continue
-    la, lo = g
+    la, lo = g[0], g[1]
+    fino = (len(g) > 2 and g[2] == 1)
     if not dentro(la, lo):
         fora += 1
         continue
@@ -59,6 +60,7 @@ for r in prep['rows']:
         continue
     p = {'n': r['n'], 'e': r['end_raw'], 'b': r['ba'], 'f': r['f'],
          'la': la, 'lo': lo, 'es': sorted({esp_ix[e] for e in r['es']})}
+    if not fino: p['ap'] = 1
     vistos[chave] = p
     pontos.append(p)
 
