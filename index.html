@@ -333,7 +333,20 @@ function bounds(feat){
 }
 function featZona(nm){ var r=null; layZ.forEach(function(f){ if(f.getProperty('z')===nm) r=f }); return r }
 function featDistrito(nm){ var r=null; layD.forEach(function(f){ if(f.getProperty('d')===nm) r=f }); return r }
-function featBairro(nm){ var r=null; layB.forEach(function(f){ if(f.getProperty('b')===nm) r=f }); return r }
+function boundsBairro(d,b){
+  var l=(CUR.vis||[]).filter(function(p){return p.d===d&&p.b===b});
+  if(!l.length) return null;
+  var bb=new google.maps.LatLngBounds();
+  l.forEach(function(p){bb.extend({lat:p.la,lng:p.lo})});
+  if(l.length===1){ var r=0.0022; bb.extend({lat:l[0].la+r,lng:l[0].lo+r}); bb.extend({lat:l[0].la-r,lng:l[0].lo-r}) }
+  return bb;
+}
+function centroBairro(d,b){
+  var l=(CUR.vis||[]).filter(function(p){return p.d===d&&p.b===b});
+  if(!l.length) return null;
+  var la=0,lo=0; l.forEach(function(p){la+=p.la;lo+=p.lo});
+  return {lat:la/l.length,lng:lo/l.length,n:l.length};
+}
 
 /* ---------- navegação ---------- */
 function irCidade(){
@@ -359,9 +372,6 @@ function irZona(nm){
 function irDistrito(nm){
   S.nivel='distrito'; S.zona=D2Z[nm]||S.zona; S.distrito=nm; S.bairro=null; S.selPt=null;
   info&&info.close();
-  layB.forEach(function(f){layB.remove(f)});
-  var sub=AREAS.bairros.features.filter(function(f){return f.properties.d===nm});
-  layB.addGeoJson({type:'FeatureCollection',features:sub});
   map.setOptions({styles:STYLE_MEIO});
   var fd=featDistrito(nm); if(fd) map.fitBounds(bounds(fd),30);
   desenhaPontos();
@@ -371,18 +381,17 @@ function irBairro(nm){
   S.nivel='bairro'; S.bairro=nm; S.selPt=null;
   info&&info.close();
   map.setOptions({styles:STYLE_DET});
-  var fb=featBairro(nm); if(fb) map.fitBounds(bounds(fb),40);
+  recompute();
+  var bb=boundsBairro(S.distrito,nm);
+  if(bb) map.fitBounds(bb,70);
+  else { var fd=featDistrito(S.distrito); if(fd) map.fitBounds(bounds(fd),30) }
   desenhaPontos();
   render();
 }
 function irPonto(p){
   S.selPt=p; S.nivel='ponto'; S.zona=D2Z[p.d]||S.zona;
   if(S.distrito!==p.d||S.bairro!==p.b){
-    if(S.distrito!==p.d){ S.distrito=p.d; 
-      layB.forEach(function(f){layB.remove(f)});
-      layB.addGeoJson({type:'FeatureCollection',features:AREAS.bairros.features.filter(function(f){return f.properties.d===p.d})});
-    }
-    S.bairro=p.b;
+    S.distrito=p.d; S.bairro=p.b;
     desenhaPontos();
   }
   map.setOptions({styles:STYLE_DET});
@@ -495,7 +504,7 @@ function render(){
       dt('População (Censo 2022)',n0(p.pop)+' hab.')+dt('Área',p.area.toLocaleString('pt-BR')+' km²')+
       dt('Credenciados',n0(n))+dt('Endereços de atendimento',n0(p.loc))+
       dt('Por 100 mil habitantes',p.pop?n2(n/p.pop*1e5):'—')+dt('Bairros',n0(p.nbai))+'</div></div>';
-    h+='<div class="hint">Clique num bairro para destacá-lo no mapa e ver quem atende ali.</div>';
+    h+='<div class="hint">Clique num bairro — no mapa ou na lista — para acender os credenciados dele.</div>';
     var bs=AREAS.bairros.features.filter(function(f){return f.properties.d===S.distrito}).map(function(f){return f.properties})
       .sort(function(a,b){return (CUR.porB[S.distrito+'|'+b.b]||0)-(CUR.porB[S.distrito+'|'+a.b]||0)||a.b.localeCompare(b.b,'pt-BR')});
     h+='<div class="sect">'+bs.length+' bairros</div>';
@@ -593,8 +602,9 @@ function desenhaRotulos(){
         return {lat:p.lat,lng:p.lng,t:p.d,w:CUR.porD[p.d]||0}});
   } else if(S.nivel==='distrito'){
     itens=AREAS.bairros.features.filter(function(f){return f.properties.d===S.distrito})
-      .map(function(f){var p=f.properties;
-        return {lat:p.lat,lng:p.lng,t:p.b,w:CUR.porB[p.d+'|'+p.b]||0,b:p.b}});
+      .map(function(f){var c=centroBairro(S.distrito,f.properties.b);
+        return c?{lat:c.lat,lng:c.lng,t:f.properties.b,w:c.n,b:f.properties.b}:null})
+      .filter(function(x){return x});
   } else return;
   var proj=map.getProjection(), sc=Math.pow(2,map.getZoom());
   itens.sort(function(a,b){return (b.w-a.w)||a.t.localeCompare(b.t,'pt-BR')});
@@ -658,9 +668,10 @@ function montaControles(){
   document.getElementById('sub').textContent=D.meta.mapa+' credenciados em '+D.meta.locais+' endereços'+(dt?' · rede de '+dt:'');
   document.getElementById('foot').innerHTML='Posição pelo CEP (precisão de rua): cada credenciado fica no logradouro do '+
     'CEP cadastrado, não no número exato. Cidade, zonas e os 96 distritos são limites oficiais. '+
-    'São Paulo não tem limite oficial de bairro: a área de cada bairro aqui cobre as faixas de CEP que os Correios '+
-    'classificam nele, então ela acompanha as ruas do bairro mas pode diferir um pouco de outros mapas. '+
-    'Todo credenciado aparece dentro do bairro em que está contado. '+
+    'São Paulo não tem limite oficial de bairro — a Prefeitura só define por lei as subprefeituras, os distritos '+
+    'e o limite do município. Por isso o mapa não desenha contorno de bairro: o bairro aparece como nome sobre '+
+    'os seus credenciados, e clicar nele acende os daquele bairro. A qual bairro cada credenciado pertence vem '+
+    'da faixa de CEP dos Correios. '+
     D.meta.semgeo+' credenciados sem coordenada ficaram fora do mapa. '+
     'Busca de endereço do cliente por Photon/OpenStreetMap. '+
     (AMIL?('Rede Amil Dental: '+AMIL.pontos.length+' credenciados na cidade de São Paulo, '+
