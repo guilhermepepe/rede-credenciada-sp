@@ -383,7 +383,8 @@ function irBairro(nm){
   map.setOptions({styles:STYLE_DET});
   recompute();
   var bb=boundsBairro(S.distrito,nm);
-  if(bb) map.fitBounds(bb,70);
+  if(bb){ map.fitBounds(bb,70);
+    google.maps.event.addListenerOnce(map,'idle',function(){ if(map.getZoom()>16.4) map.setZoom(16.4) }); }
   else { var fd=featDistrito(S.distrito); if(fd) map.fitBounds(bounds(fd),30) }
   desenhaPontos();
   render();
