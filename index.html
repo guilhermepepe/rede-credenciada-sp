@@ -31,6 +31,10 @@ body{font-family:var(--f);font-size:14px;color:var(--ink);background:var(--bg);d
 .lbl{font-size:10px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);display:block;margin-bottom:5px}
 input,select{font-family:inherit;font-size:13px;width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:5px;background:var(--surface-2);color:var(--ink)}
 .ac{position:relative}
+.rng .lbl{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.rng .lbl b{font-size:11.5px;font-weight:600;letter-spacing:0;text-transform:none;color:#6d28d9;font-variant-numeric:tabular-nums}
+.rng input[type=range]{width:100%;margin:0;accent-color:#6d28d9;cursor:pointer}
+.rng .esc{display:flex;justify-content:space-between;font-size:9.5px;color:var(--ink-3);margin-top:1px}
 .sug{position:absolute;left:0;right:0;top:100%;z-index:60;background:var(--surface);border:1px solid var(--line);
   border-radius:0 0 6px 6px;box-shadow:0 8px 20px rgba(16,36,58,.14);max-height:260px;overflow:auto;display:none}
 .sug.on{display:block}
@@ -125,6 +129,10 @@ input,select{font-family:inherit;font-size:13px;width:100%;padding:7px 10px;bord
       <input id="cli" type="search" placeholder="rua e número, bairro ou CEP" autocomplete="off">
       <div id="sug" class="sug"></div>
     </div>
+    <div class="rng"><span class="lbl">Raio de busca <b id="raioV">500 m</b></span>
+      <input id="raio" type="range" min="200" max="5000" step="100" value="500">
+      <div class="esc"><span>200 m</span><span>5 km</span></div>
+    </div>
     <div><span class="lbl">Buscar credenciado</span><input id="q" type="search" placeholder="nome, rua, bairro ou CEP" autocomplete="off"></div>
     <div><span class="lbl">Tipo</span><div class="chips" id="tipos"></div></div>
     <div><span class="lbl">Especialidade</span><select id="esp"><option value="-1">Todas as especialidades</option></select></div>
@@ -155,6 +163,7 @@ var S={nivel:'cidade',zona:null,distrito:null,bairro:null,selPt:null,tipos:[true
 var CUR={}, markers=[], labels=[], SP={lat:-23.5505,lng:-46.6333};
 var layZ=null, layC=null, D2Z={};
 var CLI=null, cliMk=null, cliCirc=null, RAIO=500;
+function fmtRaio(m){ return m<1000 ? m+' m' : (m/1000).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:1})+' km' }
 var CLICOR='#6d28d9';
 var AMIL=null, amilMk=[], AMILCOR='#0f766e';
 var ZCOR={'Zona Norte':'#9cc2ec','Zona Leste':'#f3b79a','Zona Sul':'#86ccb0','Zona Oeste':'#bdb5ee','Centro':'#f2d89a'};
@@ -442,7 +451,7 @@ function render(){
     var pr=perto(), pa=pertoAmil();
     h+='<div class="cli"><h3>'+esc(CLI.tit)+'</h3><div class="sub">'+esc(CLI.sub)+'</div>'+
       '<div class="sub" style="margin-top:7px"><b>'+pr.length+'</b> credenciado'+(pr.length===1?'':'s')+
-      ' da nossa rede num raio de 500 m</div>'+
+      ' da nossa rede num raio de '+fmtRaio(RAIO)+'</div>'+
       '<div class="acoes"><button type="button" id="cliZoom">Ver no mapa</button>'+
       '<button type="button" id="cliLimpa">Remover</button></div>'+
       (AMIL===false?'':
@@ -657,6 +666,19 @@ function montaControles(){
   D.esp.forEach(function(e,i){var o=document.createElement('option'); o.value=i; o.textContent=e; sel.appendChild(o)});
   sel.onchange=function(){S.esp=+this.value; atualiza()};
   montaAutocomplete();
+  var rg=document.getElementById('raio'), rv=document.getElementById('raioV');
+  var sv=null; try{sv=parseInt(localStorage.getItem('raio'),10)}catch(e){}
+  if(sv>=200&&sv<=5000){ RAIO=sv; rg.value=String(sv) }
+  rv.textContent=fmtRaio(RAIO);
+  rg.oninput=function(){
+    RAIO=+this.value; rv.textContent=fmtRaio(RAIO);
+    if(cliCirc) cliCirc.setRadius(RAIO);
+  };
+  rg.onchange=function(){
+    try{localStorage.setItem('raio',String(RAIO))}catch(e){}
+    if(cliCirc) map.fitBounds(cliCirc.getBounds(),60);
+    render();
+  };
   var q=document.getElementById('q'), tq;
   q.oninput=function(){clearTimeout(tq); var v=this.value.trim().toLowerCase(); tq=setTimeout(function(){S.q=v; atualiza()},170)};
   document.getElementById('limpar').onclick=function(){
