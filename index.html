@@ -260,6 +260,7 @@ var REDES=[
 var ZCOR={'Zona Norte':'#cfe3f5','Zona Leste':'#f8ddca','Zona Sul':'#ddd0f0','Zona Oeste':'#d0b592','Centro':'#f7eec6'};
 var ZSTR={'Zona Norte':'#0072B2','Zona Leste':'#D55E00','Zona Sul':'#7A3FB5','Zona Oeste':'#6B4A2F','Centro':'#B38600'};
 var PONTO='#0072B2', CIDADE_STR='#334155';
+var CIDADE_FUNDO='#DCD4EE';   // fundo da cidade aberta: claro e neutro frente aos marcadores
 /* formas: circulo = nossa rede, triangulo = cliente, X = concorrente */
 var TOQUE=(window.matchMedia&&window.matchMedia('(pointer:coarse)').matches)||('ontouchstart' in window);
 var SVG_TRI='M 0,-11 L 9.5,6.5 L -9.5,6.5 Z';
@@ -373,7 +374,7 @@ function estiloMunicipio(f){
     if(u!==S.uf) return {visible:false};
     var aberta=(ci===S.cidade);
     if(aberta&&AREAS&&u==='SP'&&ci==='São Paulo') return {visible:false};  // layC ja contorna a capital
-    return {visible:true,fillColor:'#000000',fillOpacity:0,
+    return {visible:true,fillColor:aberta?CIDADE_FUNDO:'#000000',fillOpacity:aberta?.52:0,
       strokeColor:aberta?CIDADE_STR:'#94a3b4',strokeWeight:aberta?2.8:1,
       strokeOpacity:aberta?.95:.55,zIndex:aberta?8:3,clickable:!aberta};
   }
