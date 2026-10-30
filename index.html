@@ -381,7 +381,7 @@ function garanteMun(){
     MUN.baixando[u]=1;
     fetch('mun/'+u+'.json',{cache:'force-cache'}).then(function(r){return r.json()}).then(function(j){
       MUN.pronto[u]=1; delete MUN.baixando[u];
-      j.features.forEach(function(f){ f.properties.uf=u });
+      j.features.forEach(function(f){ f.properties.uf=u; f.id=u+'|'+f.properties.ci });  // id unico: sem isso uma UF sobrescreve a outra
       layM.addGeoJson(j); layM.revertStyle(); layM.setStyle(estiloMunicipio); desenhaRotulos();
       if(S.nivel==='cidade'&&enquadraCidade.pend===S.uf+'|'+S.cidade){   // reenquadra agora que a malha chegou
         enquadraCidade(S.uf,S.cidade); desenhaPontos();
