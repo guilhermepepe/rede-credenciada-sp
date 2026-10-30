@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Rede Credenciada — São Paulo</title>
+<title>Rede Credenciada — Brasil</title>
 <style>
 :root{--bg:#f3f5f7;--surface:#fff;--surface-2:#f1f4f8;--surface-3:#e6ecf2;--ink:#0f1418;--ink-2:#4d5a65;--ink-3:#7b8893;
  --line:#d8e0e8;--line-2:#c2ced9;--accent:#1a73e8;--accent-soft:#e8f0fe;
@@ -155,7 +155,7 @@ body.ff .maisf::after{content:"▴"}
 </head>
 <body>
 <div id="side">
-  <div class="hd"><h1>Rede Credenciada — São Paulo</h1><p id="sub"></p></div>
+  <div class="hd"><h1>Rede Credenciada — Brasil</h1><p id="sub"></p></div>
   <div class="crumb" id="crumb"></div>
   <div class="ctl">
     <div class="ac"><span class="lbl">Endereço do cliente</span>
@@ -193,9 +193,10 @@ body.ff .maisf::after{content:"▴"}
 <script src="config.js"></script>
 <script>
 "use strict";
-var D=null, AREAS=null, map=null, info=null, layD=null, layB=null;
+var D=null, AREAS=null, map=null, info=null, layD=null, layB=null, layUF=null;
+var UFCOR='#0072B2';
 var TIPOS=[{n:'Clínica (PJ)',c:'#eb6834'},{n:'Dentista (PF)',c:'#1baf7a'},{n:'Profissional vinculado',c:'#6250d6'}];
-var S={nivel:'cidade',zona:null,distrito:null,bairro:null,selPt:null,tipos:[true,true,true],esp:-1,q:'',todosNomes:false,amil:false};
+var S={nivel:'pais',uf:null,cidade:null,zona:null,distrito:null,bairro:null,selPt:null,tipos:[true,true,true],esp:-1,q:'',todosNomes:false,amil:false};
 var CUR={}, markers=[], labels=[], SP={lat:-23.5505,lng:-46.6333};
 var layZ=null, layC=null, D2Z={};
 var CLI=null, cliMk=null, cliCirc=null, RAIO=500;
@@ -237,7 +238,7 @@ var NF=new Intl.NumberFormat('pt-BR');
 function n0(v){return v==null?'—':NF.format(Math.round(v))}
 function n2(v){return v==null?'—':v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]})}
-function addr(p){return p.e+', '+p.c+', São Paulo, SP'}
+function addr(p){return p.e+', '+(p.c?p.c+', ':'')+p.ci+', '+p.uf}
 function gmU(p){return 'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(addr(p))}
 function svU(p){return 'https://www.google.com/maps/@?api=1&map_action=pano&viewpoint='+p.la+','+p.lo}
 function dirU(p){return 'https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(addr(p))}
@@ -258,29 +259,31 @@ var STYLE_DET=[];
 function matches(p){
   if(!S.tipos[p.t]) return false;
   if(S.esp>=0 && p.es.indexOf(S.esp)<0) return false;
-  if(S.q && (p.n+' '+p.b+' '+p.d+' '+p.e+' '+p.c+' '+(p.ru||'')).toLowerCase().indexOf(S.q)<0) return false;
+  if(S.q && (p.n+' '+(p.b||'')+' '+(p.d||'')+' '+p.e+' '+p.c+' '+p.ci+' '+p.uf).toLowerCase().indexOf(S.q)<0) return false;
   return true;
 }
 function recompute(){
   CUR.vis=D.pontos.filter(matches);
-  CUR.porD={}; CUR.porB={}; CUR.porZ={};
+  CUR.porUF={}; CUR.porCid={}; CUR.porD={}; CUR.porB={}; CUR.porZ={};
   CUR.vis.forEach(function(p){
+    CUR.porUF[p.uf]=(CUR.porUF[p.uf]||0)+1;
+    var kc=p.uf+'|'+p.ci; CUR.porCid[kc]=(CUR.porCid[kc]||0)+1;
     if(p.d){ CUR.porD[p.d]=(CUR.porD[p.d]||0)+1; CUR.porB[p.d+'|'+p.b]=(CUR.porB[p.d+'|'+p.b]||0)+1;
-      var z=D2Z[p.d]; if(z) CUR.porZ[z]=(CUR.porZ[z]||0)+1 }
+      if(p.z) CUR.porZ[p.z]=(CUR.porZ[p.z]||0)+1 }
   });
-  CUR.maxZ=0; AREAS.zonas.features.forEach(function(f){var n=CUR.porZ[f.properties.z]||0; if(n>CUR.maxZ) CUR.maxZ=n});
-  var vals=Object.keys(CUR.porD).map(function(k){return CUR.porD[k]}).sort(function(a,b){return a-b});
-  CUR.br=[1,2,3,5,8];
-  if(vals.length>8){
-    var q=function(f){return vals[Math.min(vals.length-1,Math.floor(f*(vals.length-1)))]};
-    var b=[q(.2),q(.4),q(.6),q(.8),q(.93)].map(Math.round), out=[], prev=0;
-    for(var i=0;i<5;i++){var v=Math.max(b[i],prev+1); out.push(v); prev=v}
-    CUR.br=out;
-  }
-  var mx={}; CUR.vis.forEach(function(p){ if(p.d) (mx[p.d]=mx[p.d]||{})[p.b]=1 });
+  CUR.maxUF=0; for(var u in CUR.porUF) if(CUR.porUF[u]>CUR.maxUF) CUR.maxUF=CUR.porUF[u];
 }
 
 /* ---------- camadas ---------- */
+function estiloUF(f){
+  var u=f.getProperty('uf'), n=CUR.porUF[u]||0;
+  if(S.nivel!=='pais')
+    return {visible:u===S.uf,fillColor:'#000000',fillOpacity:0,strokeColor:'#17304a',strokeWeight:2.4,strokeOpacity:.9,zIndex:7,clickable:false};
+  var t=CUR.maxUF?Math.sqrt(n/CUR.maxUF):0;
+  return {visible:true,fillColor:n?UFCOR:'#e8ecf1',fillOpacity:n?(.12+.62*t):.5,
+    strokeColor:'#ffffff',strokeWeight:1.1,strokeOpacity:.95,zIndex:1,clickable:true};
+}
+function featUF(u){ var r=null; layUF.forEach(function(f){ if(f.getProperty('uf')===u) r=f }); return r }
 function estiloZona(f){
   var z=f.getProperty('z');
   if(S.nivel==='cidade')
@@ -317,19 +320,45 @@ function rotulo(pos,txt,size,cor2,aoClicar){
   labels.push(m);
 }
 function limparMarkers(){ markers.forEach(function(m){m.setMap(null)}); markers=[] }
+function cidadesDe(uf){
+  var m={};
+  CUR.vis.forEach(function(p){ if(p.uf!==uf) return;
+    var o=m[p.ci]; if(!o) o=m[p.ci]={ci:p.ci,n:0,la:0,lo:0};
+    o.n++; o.la+=p.la; o.lo+=p.lo });
+  var out=[]; for(var k in m){ var o=m[k]; o.la/=o.n; o.lo/=o.n; out.push(o) }
+  return out.sort(function(a,b){return b.n-a.n||a.ci.localeCompare(b.ci,'pt-BR')});
+}
+function desenhaBolhas(){
+  var lista=cidadesDe(S.uf); if(!lista.length) return;
+  var mx=lista[0].n;
+  lista.forEach(function(o){
+    var r=7+15*Math.sqrt(o.n/mx);
+    var m=new google.maps.Marker({position:{lat:o.la,lng:o.lo},map:map,title:o.ci+' · '+o.n,zIndex:70,
+      icon:{path:google.maps.SymbolPath.CIRCLE,scale:r,fillColor:PONTO,fillOpacity:.72,
+        strokeColor:'#ffffff',strokeWeight:2,strokeOpacity:1},
+      label:{text:String(o.n),fontSize:(o.n>99?'10px':'11px'),fontWeight:'700',color:'#ffffff'}});
+    m.addListener('click',function(){ irCidade(S.uf,o.ci) });
+    markers.push(m);
+  });
+}
 function km(a,b,c,d){ var R=111.32; return Math.hypot((a-c)*R,(b-d)*R*Math.cos((a+c)/2*Math.PI/180)) }
 function emFoco(p){
-  if(S.nivel==='cidade') return true;
-  if(S.nivel==='zona') return D2Z[p.d]===S.zona;
+  if(S.nivel==='pais') return true;
+  if(S.nivel==='uf') return p.uf===S.uf;
+  if(S.nivel==='cidade') return p.uf===S.uf&&p.ci===S.cidade;
+  if(S.nivel==='zona') return p.z===S.zona;
   if(S.nivel==='distrito') return p.d===S.distrito;
   return p.d===S.distrito&&p.b===S.bairro;
 }
 function desenhaPontos(){
   limparMarkers();
   if(!CUR.vis) return;
-  var sc=S.nivel==='cidade'?4.5:(S.nivel==='zona'?5.5:7), sw=S.nivel==='cidade'?1:(S.nivel==='zona'?1.4:2);
+  if(S.nivel==='pais') return;                 // no Brasil quem conta sao os estados
+  if(S.nivel==='uf'){ desenhaBolhas(); return }
+  var sc=S.nivel==='cidade'?5.5:7, sw=S.nivel==='cidade'?1.4:2;
   var scf=Math.max(3.6,sc-2.2), swf=Math.max(.9,sw-.8);
   CUR.vis.forEach(function(p){
+    if(p.uf!==S.uf||p.ci!==S.cidade) return;   // so a cidade aberta
     var f=emFoco(p);
     var pos={lat:p.la,lng:p.lo}, abre=function(){ irPonto(p) };
     var m=new google.maps.Marker({position:pos,map:map,title:p.n,zIndex:f?80:60,clickable:!TOQUE,
@@ -406,6 +435,18 @@ function abreConc(r,x){
     '" target="_blank" rel="noopener">Google Maps \u2197</a></div></div>');
   info.setPosition({lat:x.p.la,lng:x.p.lo}); info.open(map);
 }
+function carregaAreas(){
+  if(AREAS||carregaAreas.carregando) return;
+  carregaAreas.carregando=true;
+  fetch('areas.json',{cache:'no-cache'}).then(function(r){return r.json()}).then(function(j){
+    AREAS=j;
+    j.distritos.features.forEach(function(f){ D2Z[f.properties.d]=f.properties.z });
+    if(layD){ layD.addGeoJson(j.distritos); layD.setStyle(estiloDistrito) }
+    if(layZ&&!layZ.__pronto){ layZ.addGeoJson(j.zonas); layZ.setStyle(estiloZona); layZ.__pronto=1 }
+    if(layC&&!layC.__pronto){ layC.addGeoJson(j.cidade); layC.setStyle(estiloCidade); layC.__pronto=1 }
+    render(); desenhaRotulos();
+  }).catch(function(){ carregaAreas.carregando=false });
+}
 function bounds(feat){
   var b=new google.maps.LatLngBounds();
   feat.getGeometry().forEachLatLng(function(ll){b.extend(ll)});
@@ -429,7 +470,7 @@ function centroBairro(d,b){
 }
 
 /* ---------- navegação ---------- */
-function irCidade(){
+function irCidadeSP(){
   S.nivel='cidade'; S.zona=null; S.distrito=null; S.bairro=null; S.selPt=null;
   layB.forEach(function(f){layB.remove(f)});
   info&&info.close();
@@ -438,6 +479,40 @@ function irCidade(){
   layZ.forEach(function(f){ f.getGeometry().forEachLatLng(function(ll){b.extend(ll)}) });
   map.fitBounds(b,20);
   desenhaPontos();
+  render();
+}
+function irPais(){
+  S.nivel='pais'; S.uf=null; S.cidade=null; S.zona=null; S.distrito=null; S.bairro=null; S.selPt=null;
+  info&&info.close();
+  if(layB) layB.forEach(function(f){layB.remove(f)});
+  if(layD) layD.forEach(function(f){layD.remove(f)});
+  map.setOptions({styles:STYLE_MACRO});
+  map.setCenter({lat:-14.6,lng:-52.5}); map.setZoom(4);
+  desenhaPontos(); render();
+}
+function irUF(u){
+  S.nivel='uf'; S.uf=u; S.cidade=null; S.zona=null; S.distrito=null; S.bairro=null; S.selPt=null;
+  info&&info.close();
+  if(layB) layB.forEach(function(f){layB.remove(f)});
+  if(layD) layD.forEach(function(f){layD.remove(f)});
+  map.setOptions({styles:STYLE_MACRO});
+  var f=featUF(u); if(f) map.fitBounds(bounds(f),26);
+  desenhaPontos(); render();
+}
+function irCidade(u,ci){
+  S.nivel='cidade'; S.uf=u; S.cidade=ci; S.zona=null; S.distrito=null; S.bairro=null; S.selPt=null;
+  info&&info.close();
+  map.setOptions({styles:STYLE_MEIO});
+  recompute();
+  var l=CUR.vis.filter(function(p){return p.uf===u&&p.ci===ci});
+  if(l.length){
+    var bb=new google.maps.LatLngBounds();
+    l.forEach(function(p){bb.extend({lat:p.la,lng:p.lo})});
+    map.fitBounds(bb,60);
+    google.maps.event.addListenerOnce(map,'idle',function(){ if(map.getZoom()>15.5) map.setZoom(15.5) });
+  }
+  desenhaPontos();
+  if(u==='SP'&&ci==='São Paulo') carregaAreas();
   render();
 }
 function irZona(nm){
@@ -470,11 +545,11 @@ function irBairro(nm){
   render();
 }
 function irPonto(p){
-  S.selPt=p; S.nivel='ponto'; S.zona=D2Z[p.d]||S.zona;
-  if(S.distrito!==p.d||S.bairro!==p.b){
-    S.distrito=p.d; S.bairro=p.b;
-    desenhaPontos();
-  }
+  S.selPt=p; S.nivel='ponto'; S.uf=p.uf; S.cidade=p.ci;
+  if(p.d){
+    S.zona=p.z||D2Z[p.d]||S.zona;
+    if(S.distrito!==p.d||S.bairro!==p.b){ S.distrito=p.d; S.bairro=p.b; desenhaPontos() }
+  } else { S.zona=null; S.distrito=null; S.bairro=null }
   map.setOptions({styles:STYLE_DET});
   map.panTo({lat:p.la,lng:p.lo}); map.setZoom(18);
   info.setContent(iw(p));
@@ -493,16 +568,24 @@ function iw(p){
 
 /* ---------- painel ---------- */
 function crumb(){
-  var h='<button type="button" data-go="cidade">São Paulo</button>';
-  if(S.zona) h+='<span class="sep">›</span>'+(S.distrito?'<button type="button" data-go="zona">'+esc(S.zona)+'</button>':'<span class="cur">'+esc(S.zona)+'</span>');
-  if(S.distrito) h+='<span class="sep">›</span>'+(S.bairro?'<button type="button" data-go="distrito">'+esc(S.distrito)+'</button>':'<span class="cur">'+esc(S.distrito)+'</span>');
-  if(S.bairro) h+='<span class="sep">›</span>'+(S.selPt?'<button type="button" data-go="bairro">'+esc(S.bairro)+'</button>':'<span class="cur">'+esc(S.bairro)+'</span>');
-  if(S.selPt) h+='<span class="sep">›</span><span class="cur">'+esc(S.selPt.n.slice(0,26))+'</span>';
+  var h='<button type="button" data-go="pais">Brasil</button>';
+  function passo(rot,go,ultimo){
+    h+='<span class="sep">›</span>'+(ultimo?'<span class="cur">'+esc(rot)+'</span>'
+      :'<button type="button" data-go="'+go+'">'+esc(rot)+'</button>');
+  }
+  if(S.uf) passo(D.ufnome[S.uf]||S.uf,'uf',!S.cidade);
+  if(S.cidade) passo(S.cidade,'cidade',!S.zona&&!S.selPt);
+  if(S.zona) passo(S.zona,'zona',!S.distrito);
+  if(S.distrito) passo(S.distrito,'distrito',!S.bairro);
+  if(S.bairro) passo(S.bairro,'bairro',!S.selPt);
+  if(S.selPt) passo(S.selPt.n.slice(0,26),'',true);
   var el=document.getElementById('crumb'); el.innerHTML=h;
   Array.from(el.querySelectorAll('button')).forEach(function(b){
     b.onclick=function(){
       var g=b.getAttribute('data-go');
-      if(g==='cidade') irCidade();
+      if(g==='pais') irPais();
+      else if(g==='uf') irUF(S.uf);
+      else if(g==='cidade') irCidade(S.uf,S.cidade);
       else if(g==='zona') irZona(S.zona);
       else if(g==='distrito') irDistrito(S.distrito);
       else irBairro(S.bairro);
@@ -551,11 +634,50 @@ function render(){
           '<div class="a">'+esc(x.p.e)+'</div></div>'}).join('');
     });
   }
-  if(S.nivel==='cidade'){
+  if(S.nivel==='pais'){
+    var ufs=Object.keys(CUR.porUF).sort(function(a,b){return CUR.porUF[b]-CUR.porUF[a]});
+    h+=legendaSimb();
+    h+='<div class="hint">'+CUR.vis.length+' credenciados em '+ufs.length+' estados e '+
+      Object.keys(CUR.porCid).length+' cidades. Clique num estado — no mapa ou na lista — para abri-lo.</div>';
+    h+='<div class="sect">'+ufs.length+(ufs.length===1?' estado':' estados')+' com rede</div>';
+    h+=ufs.map(function(u){var n=CUR.porUF[u];
+      var nc=Object.keys(CUR.porCid).filter(function(k){return k.slice(0,k.indexOf('|'))===u}).length;
+      return '<button class="row" data-uf="'+esc(u)+'"><span class="sw" style="background:'+UFCOR+
+        ';opacity:'+(.25+.75*Math.sqrt(n/CUR.maxUF)).toFixed(2)+'"></span>'+
+        '<span><span class="n">'+esc(D.ufnome[u]||u)+'</span><br><span class="s">'+nc+(nc===1?' cidade':' cidades')+'</span></span>'+
+        '<span class="v">'+n+'<small>cred.</small></span></button>'}).join('');
+  } else if(S.nivel==='uf'){
+    var cids=cidadesDe(S.uf), nuf=CUR.porUF[S.uf]||0;
+    h+='<div class="box"><h2>'+esc(D.ufnome[S.uf]||S.uf)+'</h2><div class="sub">'+
+      nuf+(nuf===1?' credenciado':' credenciados')+' em '+cids.length+(cids.length===1?' cidade':' cidades')+'</div></div>';
+    h+='<div class="hint">O número dentro de cada bolha é a quantidade de credenciados na cidade. Clique para abrir.</div>';
+    h+='<div class="sect">'+cids.length+(cids.length===1?' cidade':' cidades')+'</div>';
+    h+=cids.map(function(o){
+      return '<button class="row" data-ci="'+esc(o.ci)+'"><span class="sw" style="background:'+PONTO+
+        ';opacity:'+(.3+.7*Math.sqrt(o.n/cids[0].n)).toFixed(2)+'"></span>'+
+        '<span><span class="n">'+esc(o.ci)+'</span></span>'+
+        '<span class="v">'+o.n+'<small>cred.</small></span></button>'}).join('');
+  } else if(S.nivel==='cidade'&&!(S.uf==='SP'&&S.cidade==='São Paulo'&&AREAS)){
+    var lc=CUR.vis.filter(function(x){return x.uf===S.uf&&x.ci===S.cidade})
+      .sort(function(a,b){return (a.b||'').localeCompare(b.b||'','pt-BR')||a.n.localeCompare(b.n,'pt-BR')});
+    h+='<div class="box"><h2>'+esc(S.cidade)+'</h2><div class="sub">'+esc(D.ufnome[S.uf]||S.uf)+'</div>'+
+      '<div style="margin-top:10px">'+dt('Credenciados',n0(lc.length))+
+      dt('— clínicas (PJ)',n0(lc.filter(function(x){return x.t===0}).length))+
+      dt('— dentistas (PF)',n0(lc.filter(function(x){return x.t===1}).length))+
+      dt('— vinculados',n0(lc.filter(function(x){return x.t===2}).length))+'</div></div>';
+    h+=legendaSimb();
+    if(S.uf==='SP'&&S.cidade==='São Paulo') h+='<div class="hint">Carregando as zonas e distritos de São Paulo…</div>';
+    h+='<div class="sect">'+(lc.length?lc.length+(lc.length===1?' credenciado':' credenciados'):'Nenhum credenciado')+'</div>';
+    h+=lc.map(function(x){
+      return '<div class="item" data-pt="'+esc(x.n)+'">'+
+        '<div class="n">'+esc(x.n)+'</div>'+
+        '<div class="m">'+esc(D.tipos[x.t])+(x.b?' · '+esc(x.b):'')+'</div>'+
+        '<div class="a">'+esc(x.e)+'</div></div>'}).join('');
+  } else if(S.nivel==='cidade'){
     var zs=AREAS.zonas.features.map(function(f){return f.properties})
       .sort(function(a,b){return (CUR.porZ[b.z]||0)-(CUR.porZ[a.z]||0)});
     h+=legendaSimb()+legendaZ();
-    h+='<div class="hint">Todos os '+CUR.vis.length+' credenciados estão no mapa. Clique numa zona — no mapa ou na lista — para ver os distritos dela.</div>';
+    h+='<div class="hint">Os '+(CUR.porCid['SP|São Paulo']||0)+' credenciados da capital estão no mapa. Clique numa zona — no mapa ou na lista — para ver os distritos dela.</div>';
     h+='<div class="sect">5 zonas</div>';
     h+=zs.map(function(r){var n=CUR.porZ[r.z]||0;
       return '<button class="row" data-z="'+esc(r.z)+'"><span class="sw" style="background:'+ZCOR[r.z]+'"></span>'+
@@ -653,6 +775,8 @@ function render(){
     var r=REDES[i]; if(!r) return;
     var x=pertoRede(r).filter(function(y){return y.p.n===nm})[0];
     if(x){ map.panTo({lat:x.p.la,lng:x.p.lo}); abreConc(r,x) }}});
+  Array.from(pane.querySelectorAll('[data-uf]')).forEach(function(b){b.onclick=function(){irUF(b.getAttribute('data-uf'))}});
+  Array.from(pane.querySelectorAll('[data-ci]')).forEach(function(b){b.onclick=function(){irCidade(S.uf,b.getAttribute('data-ci'))}});
   Array.from(pane.querySelectorAll('[data-z]')).forEach(function(b){b.onclick=function(){irZona(b.getAttribute('data-z'))}});
   Array.from(pane.querySelectorAll('[data-d]')).forEach(function(b){b.onclick=function(){irDistrito(b.getAttribute('data-d'))}});
   Array.from(pane.querySelectorAll('[data-b]')).forEach(function(b){b.onclick=function(){irBairro(b.getAttribute('data-b'))}});
@@ -691,14 +815,24 @@ function hideTip(){ if(!TIPel) TIPel=document.getElementById('tip'); if(TIPel) T
 function desenhaRotulos(){
   limparLabels();
   if(!map||!map.getProjection()) return;
-  var itens=[], zonaLvl=S.nivel==='cidade';
-  if(S.nivel==='cidade'){
-    itens=AREAS.zonas.features.map(function(f){var p=f.properties;
-      return {lat:p.lat,lng:p.lng,t:p.z,w:CUR.porZ[p.z]||0}});
+  if(S.nivel==='pais'){
+    D.estados.features.forEach(function(f){
+      var pr=f.properties, n=CUR.porUF[pr.uf]||0;
+      rotulo({lat:pr.lat,lng:pr.lng}, pr.uf+(n?' '+n:''), n?'13px':'11px',
+        n?'#0b2d4d':'#8a95a1', (function(u){return function(){ if(CUR.porUF[u]) irUF(u) }})(pr.uf));
+    });
+    return;
+  }
+  if(S.nivel==='uf') return;                 // as bolhas ja trazem o numero
+  if(!AREAS) return;
+  var itens=[], zonaLvl=false;
+  if(S.nivel==='cidade'&&S.uf==='SP'&&S.cidade==='São Paulo'){
+    zonaLvl=true;
+    itens=AREAS.zonas.features.map(function(f){var pr=f.properties;
+      return {lat:pr.lat,lng:pr.lng,t:pr.z,w:CUR.porZ[pr.z]||0}});
   } else if(S.nivel==='zona'){
     itens=AREAS.distritos.features.filter(function(f){return f.properties.z===S.zona})
-      .map(function(f){var p=f.properties;
-        return {lat:p.lat,lng:p.lng,t:p.d,w:CUR.porD[p.d]||0}});
+      .map(function(f){var pr=f.properties; return {lat:pr.lat,lng:pr.lng,t:pr.d,w:CUR.porD[pr.d]||0}});
   } else if(S.nivel==='distrito'){
     itens=AREAS.bairros.features.filter(function(f){return f.properties.d===S.distrito})
       .map(function(f){var c=centroBairro(S.distrito,f.properties.b);
@@ -712,9 +846,7 @@ function desenhaRotulos(){
   [0,-10,10,-20,20,-30,30,-40,40].forEach(function(dy){[0,-26,26,-52,52].forEach(function(dx){OFF.push([dx,dy])})});
   var caixas=[], n=0;
   for(var i=0;i<itens.length;i++){
-    var it=itens[i];
-    var txt=it.t+(it.w?' '+it.w:'');
-    var pos={lat:it.lat,lng:it.lng};
+    var it=itens[i], txt=it.t+(it.w?' '+it.w:''), pos={lat:it.lat,lng:it.lng};
     if(!S.todosNomes){
       var pt=proj.fromLatLngToPoint(new google.maps.LatLng(it.lat,it.lng));
       var x0=pt.x*sc, y0=pt.y*sc, w=txt.length*fw+6, ok=null;
@@ -789,9 +921,9 @@ function montaControles(){
     Array.from(tp.children).forEach(function(c){c.setAttribute('aria-pressed','true')});
     atualiza();
   };
-  AREAS.distritos.features.forEach(function(f){ D2Z[f.properties.d]=f.properties.z });
   var dt=(D.meta.fonte.match(/\d{2}\/\d{2}\/\d{4}/)||['']) [0];
-  document.getElementById('sub').textContent=D.meta.mapa+' credenciados em '+D.meta.locais+' endereços'+(dt?' · rede de '+dt:'');
+  document.getElementById('sub').textContent=D.meta.n+' credenciados · '+D.meta.cidades+
+    ' cidades em '+D.meta.ufs+' estados'+(dt?' · rede de '+dt:'');
 }
 /* ---------- autocomplete de endereço (Photon / OpenStreetMap) ---------- */
 function montaAutocomplete(){
@@ -822,7 +954,7 @@ function montaAutocomplete(){
   }
   function busca(v){
     var meu=++seq;
-    var u='https://photon.komoot.io/api/?limit=6&lat=-23.55&lon=-46.63&bbox=-47.10,-24.10,-46.10,-23.20&q='+encodeURIComponent(v);
+    var u='https://photon.komoot.io/api/?limit=6&lat=-15.8&lon=-47.9&bbox=-47.10,-24.10,-46.10,-23.20&q='+encodeURIComponent(v);
     fetch(u).then(function(r){return r.json()}).then(function(j){
       if(meu!==seq) return;
       var vistos={};
@@ -853,7 +985,7 @@ function atualiza(){ recompute(); desenhaPontos(); render(); }
 function initMap(){
   document.getElementById('gate').style.display='none';
   map=new google.maps.Map(document.getElementById('map'),{
-    center:SP, zoom:11, mapTypeId:'roadmap', styles:STYLE_MACRO, isFractionalZoomEnabled:true,
+    center:{lat:-14.6,lng:-52.5}, zoom:4, mapTypeId:'roadmap', styles:STYLE_MACRO, isFractionalZoomEnabled:true,
     mapTypeControl:true, streetViewControl:true, fullscreenControl:true,
     mapTypeControlOptions:{style:google.maps.MapTypeControlStyle.HORIZONTAL_BAR}});
   info=new google.maps.InfoWindow({maxWidth:320});
@@ -863,13 +995,24 @@ function initMap(){
   bn.textContent='Nomes';
   bn.onclick=function(){ S.todosNomes=!S.todosNomes; desenhaRotulos() };
   map.controls[google.maps.ControlPosition.TOP_RIGHT].push(bn);
+  layUF=new google.maps.Data({map:map});
   layZ=new google.maps.Data({map:map});
   layD=new google.maps.Data({map:map});
   layB=new google.maps.Data({map:map});
   layC=new google.maps.Data({map:map});
-  layC.addGeoJson(AREAS.cidade);
-  layC.setStyle(estiloCidade);
-  layZ.addGeoJson(AREAS.zonas);
+  layUF.addGeoJson(D.estados);
+  layUF.setStyle(estiloUF);
+  layUF.addListener('click',function(e){ var u=e.feature.getProperty('uf'); if(CUR.porUF[u]) irUF(u) });
+  layUF.addListener('mouseover',function(e){
+    if(S.nivel!=='pais') return;
+    layUF.overrideStyle(e.feature,{strokeWeight:2.4,strokeColor:'#17304a'});
+  });
+  layUF.addListener('mousemove',function(e){
+    if(S.nivel!=='pais') return hideTip();
+    var u=e.feature.getProperty('uf'), n=CUR.porUF[u]||0;
+    showTip(e.feature.getProperty('nome')+' — '+(n?n+' credenciado'+(n===1?'':'s'):'sem rede'),e.domEvent);
+  });
+  layUF.addListener('mouseout',function(){ layUF.revertStyle(); hideTip() });
   layZ.addListener('click',function(e){ irZona(e.feature.getProperty('z')) });
   layZ.addListener('mouseover',function(e){ layZ.overrideStyle(e.feature,{fillOpacity:.78,strokeWeight:3}) });
   layZ.addListener('mousemove',function(e){
@@ -877,7 +1020,6 @@ function initMap(){
     showTip(z+' — '+(CUR.porZ[z]||0)+' credenciados',e.domEvent);
   });
   layZ.addListener('mouseout',function(){ layZ.revertStyle(); hideTip() });
-  layD.addGeoJson(AREAS.distritos);
   layD.addListener('click',function(e){ var nm=e.feature.getProperty('d'); if(nm&&nm!==S.distrito) irDistrito(nm) });
   layD.addListener('mouseover',function(e){
     if(e.feature.getProperty('d')===S.distrito) return;
@@ -896,7 +1038,7 @@ function initMap(){
   });
   layB.addListener('mouseout',function(){ layB.revertStyle(); hideTip() });
   map.addListener('idle',function(){ desenhaRotulos() });
-  irCidade();
+  irPais();
 }
 window.initMap=initMap;
 window.gm_authFailure=function(){
@@ -923,10 +1065,10 @@ document.getElementById('key').addEventListener('keydown',function(e){if(e.key==
 
 var RE_KEY=/^AIza[0-9A-Za-z_\-]{20,}$/;
 Promise.all([
-  fetch('dados.json',{cache:'no-cache'}).then(function(r){return r.json()}),
-  fetch('areas.json',{cache:'no-cache'}).then(function(r){return r.json()})
+  fetch('rede.json',{cache:'no-cache'}).then(function(r){return r.json()}),
+  fetch('estados.json',{cache:'no-cache'}).then(function(r){return r.json()})
 ]).then(function(a){
-  D=a[0]; AREAS=a[1];
+  D=a[0]; D.estados=a[1];
   montaControles(); recompute();
   REDES.forEach(function(r){
     fetch(r.arq,{cache:'no-cache'}).then(function(x){return x.json()})
@@ -934,6 +1076,7 @@ Promise.all([
       .catch(function(){ r.erro=true; if(CLI) render() });
   });
   document.getElementById('cnt').textContent=D.pontos.length+' credenciados';
+  TIPOS=D.tipos.map(function(n,i){return {n:n,c:['#eb6834','#1baf7a','#6250d6'][i]}});
   var k=(typeof window.GMAPS_KEY==='string'&&RE_KEY.test(window.GMAPS_KEY.trim()))?window.GMAPS_KEY.trim():null;
   if(k){ loadGoogle(k); return }
   fetch('key.txt',{cache:'no-store'}).then(function(r){return r.ok?r.text():''}).catch(function(){return ''})
