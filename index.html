@@ -286,17 +286,19 @@ function estiloUF(f){
 function featUF(u){ var r=null; layUF.forEach(function(f){ if(f.getProperty('uf')===u) r=f }); return r }
 function estiloZona(f){
   var z=f.getProperty('z');
+  if(S.nivel==='pais'||S.nivel==='uf') return {visible:false};
   if(S.nivel==='cidade')
     return {visible:true,fillColor:ZCOR[z],fillOpacity:.66,strokeColor:'#ffffff',strokeWeight:2,strokeOpacity:1,zIndex:1,clickable:true};
   return {visible:true,fillColor:'#000000',fillOpacity:0,strokeColor:ZSTR[z],strokeWeight:2.2,strokeOpacity:.85,zIndex:7,clickable:false};
 }
 function estiloCidade(){
+  if(S.nivel==='pais'||S.nivel==='uf') return {visible:false};
   return {fillColor:'#000000',fillOpacity:0,strokeColor:CIDADE_STR,strokeWeight:S.nivel==='cidade'?0:2.6,strokeOpacity:.9,zIndex:8,clickable:false};
 }
 function estiloDistrito(f){
   var nm=f.getProperty('d'), z=f.getProperty('z');
   var foco=S.distrito===nm, naZona=z===S.zona;
-  if(S.nivel==='cidade') return {visible:false};
+  if(S.nivel==='pais'||S.nivel==='uf'||S.nivel==='cidade') return {visible:false};
   if(S.nivel==='zona'){
     if(naZona) return {visible:true,fillColor:ZCOR[z],fillOpacity:.62,strokeColor:'#ffffff',strokeWeight:1.3,strokeOpacity:.95,zIndex:2,clickable:true};
     return {visible:true,fillColor:ZCOR[z],fillOpacity:.16,strokeColor:'#ffffff',strokeWeight:.8,strokeOpacity:.6,zIndex:1,clickable:true};
@@ -500,7 +502,6 @@ function irPais(){
   S.nivel='pais'; S.uf=null; S.cidade=null; S.zona=null; S.distrito=null; S.bairro=null; S.selPt=null;
   info&&info.close();
   if(layB) layB.forEach(function(f){layB.remove(f)});
-  if(layD) layD.forEach(function(f){layD.remove(f)});
   map.setOptions({styles:STYLE_MACRO});
   if(!irPais.bb && layUF){
     var b=new google.maps.LatLngBounds();
@@ -515,7 +516,6 @@ function irUF(u){
   S.nivel='uf'; S.uf=u; S.cidade=null; S.zona=null; S.distrito=null; S.bairro=null; S.selPt=null;
   info&&info.close();
   if(layB) layB.forEach(function(f){layB.remove(f)});
-  if(layD) layD.forEach(function(f){layD.remove(f)});
   map.setOptions({styles:STYLE_MACRO});
   var f=featUF(u); if(f) map.fitBounds(bounds(f),26);
   desenhaPontos(); render();
