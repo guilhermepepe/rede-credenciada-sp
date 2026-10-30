@@ -353,8 +353,21 @@ function emFoco(p){
 function desenhaPontos(){
   limparMarkers();
   if(!CUR.vis) return;
-  if(S.nivel==='pais') return;                 // no Brasil quem conta sao os estados
-  if(S.nivel==='uf'){ desenhaBolhas(); return }
+  if(S.nivel==='pais'||S.nivel==='uf'){
+    if(S.nivel==='uf') desenhaBolhas();
+    if(CLI){                                   // com cliente, os do raio aparecem por cima
+      perto().forEach(function(x){
+        var pos={lat:x.p.la,lng:x.p.lo}, abre=(function(pp){return function(){ irPonto(pp) }})(x.p);
+        var m=new google.maps.Marker({position:pos,map:map,title:x.p.n,zIndex:85,clickable:!TOQUE,
+          icon:{path:google.maps.SymbolPath.CIRCLE,scale:6,fillColor:PONTO,fillOpacity:1,
+            strokeColor:'#fff',strokeWeight:1.6,strokeOpacity:1}});
+        if(!TOQUE) m.addListener('click',abre);
+        markers.push(m);
+        if(TOQUE) markers.push(alvoToque(pos,abre,84));
+      });
+    }
+    return;
+  }
   var sc=S.nivel==='cidade'?5.5:7, sw=S.nivel==='cidade'?1.4:2;
   var scf=Math.max(3.6,sc-2.2), swf=Math.max(.9,sw-.8);
   CUR.vis.forEach(function(p){
