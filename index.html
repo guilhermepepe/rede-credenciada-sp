@@ -553,15 +553,7 @@ function irPais(){
   info&&info.close();
   if(layB) layB.forEach(function(f){layB.remove(f)});
   map.setOptions({styles:STYLE_MACRO});
-  var bb=null;
-  if(layUF){
-    bb=new google.maps.LatLngBounds(); var achou=false;
-    layUF.forEach(function(f){
-      var u=f.getProperty('uf');
-      if(escVazio()||ESC.ufs[u]){ achou=true; f.getGeometry().forEachLatLng(function(ll){bb.extend(ll)}) }
-    });
-    if(!achou) bb=null;
-  }
+  var bb=bboxEscopo();
   if(bb) map.fitBounds(bb,16);
   else { map.setCenter({lat:-14.6,lng:-52.5}); map.setZoom(4) }
   desenhaPontos(); render();
@@ -1020,6 +1012,15 @@ function pintaEscopo(){
   }
   try{ localStorage.setItem('escopo',JSON.stringify({ufs:ESC.ufs,cids:ESC.cids,ok:!!ESC.ok})) }catch(e){}
 }
+function bboxEscopo(){
+  if(!layUF) return null;
+  var b=new google.maps.LatLngBounds(), achou=false;
+  layUF.forEach(function(f){
+    var u=f.getProperty('uf');
+    if(escVazio()||ESC.ufs[u]){ achou=true; f.getGeometry().forEachLatLng(function(ll){b.extend(ll)}) }
+  });
+  return achou?b:null;
+}
 function aplicaEscopo(repinta){
   if(repinta) pintaEscopo();
   if(!D) return;
@@ -1030,6 +1031,7 @@ function aplicaEscopo(repinta){
              (S.uf && !S.cidade && !CUR.porUF[S.uf]);
   if(fora){ irPais(); return }
   desenhaPontos(); render(); desenhaRotulos();
+  if(S.nivel==='pais'&&!CLI){ var b=bboxEscopo(); if(b) map.fitBounds(b,16) }
 }
 function montaEscopoCasa(){
   var cx=document.getElementById('escCaixa'), casa=document.getElementById('escCasa');
