@@ -349,11 +349,15 @@ function estiloZona(f){
     return {visible:true,fillColor:ZCOR[z],fillOpacity:.66,strokeColor:'#ffffff',strokeWeight:2,strokeOpacity:1,zIndex:1,clickable:true};
   return {visible:true,fillColor:'#000000',fillOpacity:0,strokeColor:ZSTR[z],strokeWeight:2.2,strokeOpacity:.85,zIndex:7,clickable:false};
 }
+function munAparece(){                       // unica regra: vale para carregar e para desenhar
+  if(S.nivel==='zona'||S.nivel==='distrito'||S.nivel==='bairro') return false;
+  if(S.nivel==='uf'||S.nivel==='cidade'||S.nivel==='ponto') return true;
+  var n=0; for(var k in CUR.porCid) n++;     // visao Brasil: so quando o escopo e pequeno
+  return n>0 && n<=MUN_LIM;
+}
 function munPrecisa(){
-  if(S.nivel==='zona'||S.nivel==='distrito'||S.nivel==='bairro') return [];
-  if(S.nivel==='uf'||S.nivel==='cidade') return S.uf?[S.uf]:[];
-  var n=0; for(var k in CUR.porCid) n++;
-  if(!n||n>MUN_LIM) return [];
+  if(!munAparece()) return [];
+  if(S.nivel!=='pais') return S.uf?[S.uf]:[];
   var r=[]; for(var u in CUR.porUF) if(CUR.porUF[u]) r.push(u);
   return r;
 }
@@ -398,9 +402,9 @@ function garanteMun(){
 }
 function munMax(u){ var m=0; for(var k in CUR.porCid) if(k.slice(0,2)===u&&CUR.porCid[k]>m) m=CUR.porCid[k]; return m }
 function estiloMunicipio(f){
+  if(!munAparece()) return {visible:false};  // malha ja baixada nao pode reaparecer fora do escopo
   var u=f.getProperty('uf'), ci=f.getProperty('ci'), n=CUR.porCid[u+'|'+ci]||0;
   if(!n) return {visible:false};
-  if(S.nivel==='zona'||S.nivel==='distrito'||S.nivel==='bairro') return {visible:false};
   if(S.nivel==='cidade'||S.nivel==='ponto'){
     if(u!==S.uf) return {visible:false};
     var aberta=(ci===S.cidade);
