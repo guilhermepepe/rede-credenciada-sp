@@ -457,6 +457,8 @@ function carregaAreas(){
     if(layD){ layD.addGeoJson(j.distritos); layD.setStyle(estiloDistrito) }
     if(layZ&&!layZ.__pronto){ layZ.addGeoJson(j.zonas); layZ.setStyle(estiloZona); layZ.__pronto=1 }
     if(layC&&!layC.__pronto){ layC.addGeoJson(j.cidade); layC.setStyle(estiloCidade); layC.__pronto=1 }
+    if(irDistrito.pend){ var d=irDistrito.pend; irDistrito.pend=null; irDistrito(d); return }
+    if(irZona.pend){ var z=irZona.pend; irZona.pend=null; irZona(z); return }
     render(); desenhaRotulos();
   }).catch(function(){ carregaAreas.carregando=false });
 }
@@ -535,6 +537,7 @@ function irCidade(u,ci){
   render();
 }
 function irZona(nm){
+  if(!AREAS){ carregaAreas(); irZona.pend=nm; return }
   S.nivel='zona'; S.zona=nm; S.distrito=null; S.bairro=null; S.selPt=null;
   info&&info.close();
   layB.forEach(function(f){layB.remove(f)});
@@ -544,6 +547,7 @@ function irZona(nm){
   render();
 }
 function irDistrito(nm){
+  if(!AREAS){ carregaAreas(); irDistrito.pend=nm; return }
   S.nivel='distrito'; S.zona=D2Z[nm]||S.zona; S.distrito=nm; S.bairro=null; S.selPt=null;
   info&&info.close();
   map.setOptions({styles:STYLE_MEIO});
@@ -552,6 +556,7 @@ function irDistrito(nm){
   render();
 }
 function irBairro(nm){
+  if(!AREAS) return;
   S.nivel='bairro'; S.bairro=nm; S.selPt=null;
   info&&info.close();
   map.setOptions({styles:STYLE_DET});
@@ -703,13 +708,14 @@ function render(){
         '<span><span class="n">'+esc(r.z)+'</span><br><span class="s">'+r.nd+' distritos · '+n0(r.pop)+' hab. · '+n2(r.pop?n/r.pop*1e5:0)+' por 100 mil hab.</span></span>'+
         '<span class="v">'+n+'<small>cred.</small></span></button>'}).join('');
   } else if(S.nivel==='zona'){
-    var zp=AREAS.zonas.features.filter(function(f){return f.properties.z===S.zona})[0].properties;
+    var zf=AREAS?AREAS.zonas.features.filter(function(f){return f.properties.z===S.zona})[0]:null;
+    var zp=zf?zf.properties:{z:S.zona,nd:0,nbai:0,pop:0,area:0};
     var nz=CUR.porZ[S.zona]||0;
     h+='<div class="box"><h2>'+esc(zp.z)+'</h2><div class="sub">'+zp.nd+' distritos · '+n0(zp.nbai)+' bairros</div>'+
       '<div style="margin-top:10px">'+
       dt('População (Censo 2022)',n0(zp.pop)+' hab.')+dt('Área',zp.area.toLocaleString('pt-BR')+' km²')+
       dt('Credenciados',n0(nz))+dt('Por 100 mil habitantes',zp.pop?n2(nz/zp.pop*1e5):'—')+'</div></div>';
-    h+='<div class="hint">Clique num distrito para ver os bairros por dentro.</div>';
+    h+='<div class="hint">Cada cor fechada por linha branca é um distrito. Clique num deles para abrir.</div>';
     var ds=AREAS.distritos.features.filter(function(f){return f.properties.z===S.zona}).map(function(f){return f.properties})
       .sort(function(a,b){return (CUR.porD[b.d]||0)-(CUR.porD[a.d]||0)||a.d.localeCompare(b.d,'pt-BR')});
     h+='<div class="sect">'+ds.length+' distritos</div>';
@@ -1059,6 +1065,7 @@ function initMap(){
   layB.addListener('mouseout',function(){ layB.revertStyle(); hideTip() });
   map.addListener('idle',function(){ desenhaRotulos() });
   irPais();
+  setTimeout(carregaAreas,400);          // adianta Sao Paulo sem travar a abertura
 }
 window.initMap=initMap;
 window.gm_authFailure=function(){
