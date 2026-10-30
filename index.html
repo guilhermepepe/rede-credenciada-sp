@@ -487,7 +487,13 @@ function irPais(){
   if(layB) layB.forEach(function(f){layB.remove(f)});
   if(layD) layD.forEach(function(f){layD.remove(f)});
   map.setOptions({styles:STYLE_MACRO});
-  map.setCenter({lat:-14.6,lng:-52.5}); map.setZoom(4);
+  if(!irPais.bb && layUF){
+    var b=new google.maps.LatLngBounds();
+    layUF.forEach(function(f){ f.getGeometry().forEachLatLng(function(ll){b.extend(ll)}) });
+    irPais.bb=b;
+  }
+  if(irPais.bb) map.fitBounds(irPais.bb,16);
+  else { map.setCenter({lat:-14.6,lng:-52.5}); map.setZoom(4) }
   desenhaPontos(); render();
 }
 function irUF(u){
@@ -783,6 +789,7 @@ function render(){
   Array.from(pane.querySelectorAll('[data-pt]')).forEach(function(b){b.onclick=function(){
     var x=CUR.vis.filter(function(y){return y.n===b.getAttribute('data-pt')})[0]; if(x) irPonto(x)}});
   document.getElementById('cnt').textContent=CUR.vis.length+' de '+D.pontos.length+' credenciados';
+  if(layUF){ layUF.revertStyle(); layUF.setStyle(estiloUF) }
   if(layC) layC.setStyle(estiloCidade);
   if(layZ){ layZ.revertStyle(); layZ.setStyle(estiloZona) }
   if(layD){ layD.revertStyle(); layD.setStyle(estiloDistrito) }
