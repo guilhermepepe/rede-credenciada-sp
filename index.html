@@ -122,6 +122,39 @@ body.ff .maisf::after{content:"▴"}
 #gate button.go{background:var(--accent);color:#fff;border:0;border-radius:5px;padding:9px 18px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;flex:none}
 #gate .err{color:#c5221f;font-size:12.5px;margin-top:10px;display:none}
 #gate .note{font-size:11.5px;color:var(--ink-3);margin-top:14px;line-height:1.6;border-top:1px solid var(--line);padding-top:12px}
+#esc{position:fixed;inset:0;z-index:9998;background:rgba(15,20,24,.55);display:none;align-items:center;justify-content:center;padding:20px}
+#esc.on{display:flex}
+#esc .b{background:var(--surface);border-radius:10px;max-width:760px;width:100%;padding:22px 24px 18px;box-shadow:0 20px 60px rgba(0,0,0,.3);max-height:92vh;display:flex;flex-direction:column}
+#esc h2{margin:0 0 4px;font-size:18px}
+#esc .sb{font-size:12.5px;color:var(--ink-2);margin:0 0 14px;line-height:1.55}
+#esc #escCaixa{flex:1 1 auto;min-height:0;overflow:auto}
+#esc .pe{flex:none;display:flex;justify-content:flex-end;gap:10px;align-items:center;margin-top:14px;border-top:1px solid var(--line);padding-top:13px}
+#esc .pe .go{background:var(--accent);color:#fff;border:0;border-radius:5px;padding:10px 20px;font-size:13.5px;font-weight:500;cursor:pointer;font-family:inherit}
+#esc .pe .go[disabled]{background:#c3cad2;cursor:not-allowed}
+#esc .pe .ct{font-size:12.5px;color:var(--ink-2);margin-right:auto}
+.ebox{display:flex;gap:14px;min-height:0;flex:1}
+.ecol{flex:1;min-width:0;display:flex;flex-direction:column;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+.ecol h3{margin:0;padding:9px 12px;font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);background:var(--surface-2);border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:8px}
+.ecol h3 button{background:none;border:0;font-family:inherit;font-size:10.5px;color:var(--accent);cursor:pointer;padding:0;text-transform:none;letter-spacing:0;font-weight:500}
+.ecol .bq{padding:7px 10px;border-bottom:1px solid var(--line)}
+.ecol .bq input{font-size:12.5px;padding:6px 9px}
+.elist{overflow:auto;max-height:46vh;min-height:120px}
+.elist label{display:flex;align-items:center;gap:8px;padding:7px 12px;font-size:12.5px;cursor:pointer;border-bottom:1px solid var(--line)}
+.elist label:last-child{border-bottom:0}
+.elist label:hover{background:var(--surface-2)}
+.elist input{width:auto;flex:none;margin:0;accent-color:var(--accent)}
+.elist .q{margin-left:auto;font-size:11px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+.elist .vz{padding:14px 12px;font-size:12px;color:var(--ink-3)}
+#escHome{border-bottom:1px solid var(--line);background:var(--surface-2)}
+#escHome .tp{display:flex;align-items:center;gap:8px;padding:10px 16px;cursor:pointer;font-size:12px;color:var(--ink-2)}
+#escHome .tp b{color:var(--ink);font-weight:600}
+#escHome .tp .ab{margin-left:auto;color:var(--accent);font-size:11.5px}
+#escHome .cp{display:none;padding:0 16px 14px}
+#escHome.ab .cp{display:block}
+#escHome .ebox{flex-direction:column;gap:10px}
+#escHome .elist{max-height:168px}
+@media (max-width:880px){ #esc .b{padding:16px;max-height:88vh} #esc .sb{display:none} .ebox{flex-direction:column;gap:10px} .elist{max-height:22vh} }
+#escHome .elist{max-height:140px}
 @media (max-width:880px){
  html,body{height:100vh;height:100dvh}
  body{flex-direction:column;overflow:hidden}
@@ -156,6 +189,7 @@ body.ff .maisf::after{content:"▴"}
 <body>
 <div id="side">
   <div class="hd"><h1>Rede Credenciada — Brasil</h1><p id="sub"></p></div>
+  <div id="escHome"><div class="tp" id="escTp"><span>Escopo: <b id="escRes">todos</b></span><span class="ab" id="escAb">alterar</span></div><div class="cp" id="escCasa"></div></div>
   <div class="crumb" id="crumb"></div>
   <div class="ctl">
     <div class="ac"><span class="lbl">Endereço do cliente</span>
@@ -180,6 +214,13 @@ body.ff .maisf::after{content:"▴"}
 <div id="map"></div>
 <div id="tip"></div>
 
+<div id="esc"><div class="b">
+  <h2>Onde você quer trabalhar?</h2>
+  <p class="sb">Escolha os estados e, se quiser, as cidades. O mapa e todas as buscas passam a considerar só o que estiver marcado. Dá para mudar a qualquer momento, sem recarregar.</p>
+  <div id="escCaixa"></div>
+  <div class="pe"><span class="ct" id="escCt"></span><button type="button" class="go" id="escOk">Abrir o mapa</button></div>
+</div></div>
+
 <div id="gate"><div class="b">
   <h2>Cole sua chave do Google Maps</h2>
   <p>Esta página usa o Google Maps. A chave fica gravada só neste navegador.</p>
@@ -198,6 +239,14 @@ var UFCOR='#0072B2';
 var TIPOS=[{n:'Clínica (PJ)',c:'#eb6834'},{n:'Dentista (PF)',c:'#1baf7a'},{n:'Profissional vinculado',c:'#6250d6'}];
 var S={nivel:'pais',uf:null,cidade:null,zona:null,distrito:null,bairro:null,selPt:null,tipos:[true,true,true],esp:-1,q:'',todosNomes:false,amil:false};
 var CUR={}, markers=[], labels=[], SP={lat:-23.5505,lng:-46.6333};
+var ESC={ufs:{},cids:{},qUF:'',qCid:''};        // vazio = tudo
+function escVazio(){ for(var k in ESC.ufs) if(ESC.ufs[k]) return false; return true }
+function noEscopo(p){
+  if(escVazio()) return true;
+  if(!ESC.ufs[p.uf]) return false;
+  var temCid=false; for(var k in ESC.cids) if(ESC.cids[k]&&k.slice(0,2)===p.uf){temCid=true;break}
+  return temCid ? !!ESC.cids[p.uf+'|'+p.ci] : true;   // sem cidade marcada = o estado inteiro
+}
 var layZ=null, layC=null, D2Z={};
 var CLI=null, cliMk=null, cliCirc=null, RAIO=500;
 function fmtRaio(m){ return m<1000 ? m+' m' : (m/1000).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:1})+' km' }
@@ -257,6 +306,7 @@ var STYLE_DET=[];
 
 /* ---------- filtros e agregação ---------- */
 function matches(p){
+  if(!noEscopo(p)) return false;
   if(!S.tipos[p.t]) return false;
   if(S.esp>=0 && p.es.indexOf(S.esp)<0) return false;
   if(S.q && (p.n+' '+(p.b||'')+' '+(p.d||'')+' '+p.e+' '+p.c+' '+p.ci+' '+p.uf).toLowerCase().indexOf(S.q)<0) return false;
@@ -503,12 +553,16 @@ function irPais(){
   info&&info.close();
   if(layB) layB.forEach(function(f){layB.remove(f)});
   map.setOptions({styles:STYLE_MACRO});
-  if(!irPais.bb && layUF){
-    var b=new google.maps.LatLngBounds();
-    layUF.forEach(function(f){ f.getGeometry().forEachLatLng(function(ll){b.extend(ll)}) });
-    irPais.bb=b;
+  var bb=null;
+  if(layUF){
+    bb=new google.maps.LatLngBounds(); var achou=false;
+    layUF.forEach(function(f){
+      var u=f.getProperty('uf');
+      if(escVazio()||ESC.ufs[u]){ achou=true; f.getGeometry().forEachLatLng(function(ll){bb.extend(ll)}) }
+    });
+    if(!achou) bb=null;
   }
-  if(irPais.bb) map.fitBounds(irPais.bb,16);
+  if(bb) map.fitBounds(bb,16);
   else { map.setCenter({lat:-14.6,lng:-52.5}); map.setZoom(4) }
   desenhaPontos(); render();
 }
@@ -901,6 +955,103 @@ function desenhaRotulos(){
 }
 
 /* ---------- controles ---------- */
+function catalogo(){
+  var u={}, c={};
+  D.pontos.forEach(function(p){
+    u[p.uf]=(u[p.uf]||0)+1;
+    var k=p.uf+'|'+p.ci; c[k]=(c[k]||0)+1;
+  });
+  return {u:u,c:c};
+}
+function pintaEscopo(){
+  var cx=document.getElementById('escCaixa'); if(!cx) return;
+  var cat=catalogo();
+  var ufs=Object.keys(cat.u).sort(function(a,b){return cat.u[b]-cat.u[a]});
+  var qU=ESC.qUF.toLowerCase();
+  var linhasUF=ufs.filter(function(x){return !qU||(D.ufnome[x]||x).toLowerCase().indexOf(qU)>=0||x.toLowerCase().indexOf(qU)>=0})
+    .map(function(x){
+      return '<label><input type="checkbox" data-uf="'+esc(x)+'"'+(ESC.ufs[x]?' checked':'')+'>'+
+        esc(D.ufnome[x]||x)+'<span class="q">'+cat.u[x]+'</span></label>'}).join('');
+  var ativos=ufs.filter(function(x){return ESC.ufs[x]});
+  var qC=ESC.qCid.toLowerCase(), linhasCid='';
+  if(!ativos.length) linhasCid='<div class="vz">Marque um estado ao lado para listar as cidades dele.</div>';
+  else {
+    var ks=Object.keys(cat.c).filter(function(k){return ativos.indexOf(k.slice(0,2))>=0})
+      .sort(function(a,b){return cat.c[b]-cat.c[a]});
+    var vis=ks.filter(function(k){return !qC||k.slice(3).toLowerCase().indexOf(qC)>=0});
+    linhasCid = vis.length ? vis.map(function(k){
+      return '<label><input type="checkbox" data-cid="'+esc(k)+'"'+(ESC.cids[k]?' checked':'')+'>'+
+        esc(k.slice(3))+' <span style="color:var(--ink-3)">· '+k.slice(0,2)+'</span><span class="q">'+cat.c[k]+'</span></label>'}).join('')
+      : '<div class="vz">Nenhuma cidade com esse nome.</div>';
+  }
+  cx.innerHTML='<div class="ebox">'+
+    '<div class="ecol"><h3>Estados<button type="button" id="escTodosUF">'+(ativos.length?'limpar':'marcar todos')+'</button></h3>'+
+    '<div class="bq"><input type="search" id="escQUF" placeholder="filtrar estado" value="'+esc(ESC.qUF)+'" autocomplete="off"></div>'+
+    '<div class="elist">'+linhasUF+'</div></div>'+
+    '<div class="ecol"><h3>Cidades<button type="button" id="escLimpaCid">todas do estado</button></h3>'+
+    '<div class="bq"><input type="search" id="escQCid" placeholder="filtrar cidade" value="'+esc(ESC.qCid)+'" autocomplete="off"></div>'+
+    '<div class="elist">'+linhasCid+'</div></div></div>';
+  Array.from(cx.querySelectorAll('[data-uf]')).forEach(function(b){b.onchange=function(){
+    var u=b.getAttribute('data-uf'); ESC.ufs[u]=b.checked;
+    if(!b.checked) for(var k in ESC.cids) if(k.slice(0,2)===u) delete ESC.cids[k];
+    aplicaEscopo(true);
+  }});
+  Array.from(cx.querySelectorAll('[data-cid]')).forEach(function(b){b.onchange=function(){
+    ESC.cids[b.getAttribute('data-cid')]=b.checked;
+    if(!b.checked) delete ESC.cids[b.getAttribute('data-cid')];
+    aplicaEscopo(true);
+  }});
+  var qu=document.getElementById('escQUF'); if(qu) qu.oninput=function(){ESC.qUF=this.value; pintaEscopo(); var e=document.getElementById('escQUF'); if(e){e.focus();e.setSelectionRange(e.value.length,e.value.length)}};
+  var qc=document.getElementById('escQCid'); if(qc) qc.oninput=function(){ESC.qCid=this.value; pintaEscopo(); var e=document.getElementById('escQCid'); if(e){e.focus();e.setSelectionRange(e.value.length,e.value.length)}};
+  var tu=document.getElementById('escTodosUF'); if(tu) tu.onclick=function(){
+    if(ativos.length){ ESC.ufs={}; ESC.cids={} } else ufs.forEach(function(x){ESC.ufs[x]=true});
+    aplicaEscopo(true);
+  };
+  var lc=document.getElementById('escLimpaCid'); if(lc) lc.onclick=function(){ ESC.cids={}; aplicaEscopo(true) };
+  var ct=document.getElementById('escCt');
+  var n=D.pontos.filter(noEscopo).length;
+  if(ct) ct.textContent=n+' de '+D.pontos.length+' credenciados no escopo';
+  var ok=document.getElementById('escOk'); if(ok) ok.disabled=false;
+  var res=document.getElementById('escRes');
+  if(res){
+    var nc=Object.keys(ESC.cids).filter(function(k){return ESC.cids[k]}).length;
+    res.textContent = escVazio() ? 'Brasil inteiro'
+      : (ativos.length+(ativos.length===1?' estado':' estados')+(nc?', '+nc+(nc===1?' cidade':' cidades'):'')+' · '+n+' cred.');
+  }
+  try{ localStorage.setItem('escopo',JSON.stringify({ufs:ESC.ufs,cids:ESC.cids,ok:!!ESC.ok})) }catch(e){}
+}
+function aplicaEscopo(repinta){
+  if(repinta) pintaEscopo();
+  if(!D) return;
+  recompute();
+  if(!map) return;
+  var fora = (S.uf && !escVazio() && !ESC.ufs[S.uf]) ||
+             (S.cidade && !CUR.porCid[S.uf+'|'+S.cidade]) ||
+             (S.uf && !S.cidade && !CUR.porUF[S.uf]);
+  if(fora){ irPais(); return }
+  desenhaPontos(); render(); desenhaRotulos();
+}
+function montaEscopoCasa(){
+  var cx=document.getElementById('escCaixa'), casa=document.getElementById('escCasa');
+  if(cx&&casa&&cx.parentNode!==casa) casa.appendChild(cx);
+}
+function fechaEscopo(){
+  ESC.ok=true; pintaEscopo();
+  var m=document.getElementById('esc'); if(m) m.classList.remove('on');
+  montaEscopoCasa();
+  var h=document.getElementById('escHome'); if(h) h.classList.remove('ab');
+  aplicaEscopo(false);
+}
+function iniciaEscopo(){
+  var sv=null; try{ sv=JSON.parse(localStorage.getItem('escopo')||'null') }catch(e){}
+  if(sv&&sv.ufs){ ESC.ufs=sv.ufs||{}; ESC.cids=sv.cids||{} }
+  var h=document.getElementById('escHome'), tp=document.getElementById('escTp');
+  if(tp&&h) tp.onclick=function(){ h.classList.toggle('ab') };
+  var ok=document.getElementById('escOk'); if(ok) ok.onclick=fechaEscopo;
+  pintaEscopo();
+  if(sv&&sv.ok){ ESC.ok=true; montaEscopoCasa(); return }
+  var m=document.getElementById('esc'); if(m) m.classList.add('on');
+}
 function montaControles(){
   var tp=document.getElementById('tipos');
   TIPOS.forEach(function(t,k){
@@ -1065,7 +1216,7 @@ function initMap(){
   layB.addListener('mouseout',function(){ layB.revertStyle(); hideTip() });
   map.addListener('idle',function(){ desenhaRotulos() });
   irPais();
-  setTimeout(carregaAreas,400);          // adianta Sao Paulo sem travar a abertura
+  setTimeout(function(){ if(noEscopo({uf:'SP',ci:'São Paulo'})) carregaAreas() },400);          // adianta Sao Paulo sem travar a abertura
 }
 window.initMap=initMap;
 window.gm_authFailure=function(){
@@ -1096,7 +1247,7 @@ Promise.all([
   fetch('estados.json',{cache:'no-cache'}).then(function(r){return r.json()})
 ]).then(function(a){
   D=a[0]; D.estados=a[1];
-  montaControles(); recompute();
+  montaControles(); iniciaEscopo(); recompute();
   REDES.forEach(function(r){
     fetch(r.arq,{cache:'no-cache'}).then(function(x){return x.json()})
       .then(function(j){ r.dados=j; if(CLI) render() })
