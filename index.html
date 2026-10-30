@@ -786,6 +786,18 @@ function render(){
         ';opacity:'+(.3+.7*Math.sqrt(o.n/cids[0].n)).toFixed(2)+'"></span>'+
         '<span><span class="n">'+esc(o.ci)+'</span></span>'+
         '<span class="v">'+o.n+'<small>cred.</small></span></button>'}).join('');
+  } else if(S.nivel==='ponto'&&S.selPt&&!S.selPt.d){
+    var q=S.selPt;                                   // credenciado fora da capital paulista
+    h+='<div class="box"><h2 style="font-size:15px">'+esc(q.n)+'</h2>'+
+      '<div class="sub">'+esc(D.tipos[q.t])+'</div>'+
+      '<div style="margin-top:10px">'+dt('Endereço',esc(q.e))+dt('CEP',esc(q.c))+
+      (q.b?dt('Bairro',esc(q.b)):'')+dt('Cidade',esc(q.ci)+' · '+esc(S.uf))+
+      (q.f?dt('Contato',esc(q.f)):'')+(q.v?dt('Vinculado a',esc(q.v)):'')+'</div></div>'+
+      '<div class="acts"><a class="p" href="'+gmU(q)+'" target="_blank" rel="noopener">Google Maps ↗</a>'+
+      '<a class="s" href="'+svU(q)+'" target="_blank" rel="noopener">Street View ↗</a>'+
+      '<a class="s" href="'+dirU(q)+'" target="_blank" rel="noopener">Como chegar ↗</a></div>';
+    if(q.es&&q.es.length) h+='<div class="sect">Especialidades</div><div class="esps">'+
+      q.es.map(function(i){return '<span>'+esc(D.esp[i])+'</span>'}).join('')+'</div>';
   } else if(S.nivel==='cidade'&&!(S.uf==='SP'&&S.cidade==='São Paulo'&&AREAS)){
     var lc=CUR.vis.filter(function(x){return x.uf===S.uf&&x.ci===S.cidade})
       .sort(function(a,b){return (a.b||'').localeCompare(b.b||'','pt-BR')||a.n.localeCompare(b.n,'pt-BR')});
