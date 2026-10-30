@@ -1070,7 +1070,9 @@ function catalogo(){
 function pintaEscopo(){
   var cx=document.getElementById('escCaixa'); if(!cx) return;
   var cat=catalogo();
-  var ufs=Object.keys(cat.u).sort(function(a,b){return cat.u[b]-cat.u[a]});
+  var ufs=Object.keys(cat.u).sort(function(a,b){
+    return (D.ufnome[a]||a).localeCompare(D.ufnome[b]||b,'pt-BR');   // ordem alfabetica pelo nome do estado
+  });
   var qU=ESC.qUF.toLowerCase();
   var linhasUF=ufs.filter(function(x){return !qU||(D.ufnome[x]||x).toLowerCase().indexOf(qU)>=0||x.toLowerCase().indexOf(qU)>=0})
     .map(function(x){
@@ -1081,7 +1083,9 @@ function pintaEscopo(){
   if(!ativos.length) linhasCid='<div class="vz">Marque um estado ao lado para listar as cidades dele.</div>';
   else {
     var ks=Object.keys(cat.c).filter(function(k){return ativos.indexOf(k.slice(0,2))>=0})
-      .sort(function(a,b){return cat.c[b]-cat.c[a]});
+      .sort(function(a,b){                                           // alfabetica pela cidade, UF como desempate
+        return a.slice(3).localeCompare(b.slice(3),'pt-BR')||a.slice(0,2).localeCompare(b.slice(0,2));
+      });
     var vis=ks.filter(function(k){return !qC||k.slice(3).toLowerCase().indexOf(qC)>=0});
     linhasCid = vis.length ? vis.map(function(k){
       return '<label><input type="checkbox" data-cid="'+esc(k)+'"'+(ESC.cids[k]?' checked':'')+'>'+
