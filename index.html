@@ -379,8 +379,8 @@ function estiloMunicipio(f){
   }
   if(S.nivel==='uf'&&u!==S.uf) return {visible:false};
   var mx=munMax(u), t=mx?Math.sqrt(n/mx):0;
-  return {visible:true,fillColor:UFCOR,fillOpacity:.10+.55*t,
-    strokeColor:'#ffffff',strokeWeight:1.1,strokeOpacity:.95,zIndex:2,clickable:true};
+  return {visible:true,fillColor:UFCOR,fillOpacity:.06+.50*t,
+    strokeColor:'#1f3a52',strokeWeight:1.3,strokeOpacity:.78,zIndex:2,clickable:true};
 }
 function estiloCidade(){
   if(S.nivel==='pais'||S.nivel==='uf') return {visible:false};
