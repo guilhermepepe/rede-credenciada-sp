@@ -351,6 +351,28 @@ function munPrecisa(){
   var r=[]; for(var u in CUR.porUF) if(CUR.porUF[u]) r.push(u);
   return r;
 }
+function bboxMunicipio(u,ci){
+  if(!layM) return null;
+  var b=null;
+  layM.forEach(function(f){
+    if(f.getProperty('uf')===u&&f.getProperty('ci')===ci){
+      b=b||new google.maps.LatLngBounds();
+      f.getGeometry().forEachLatLng(function(ll){b.extend(ll)});
+    }
+  });
+  return b;
+}
+function enquadraCidade(u,ci){
+  var b=bboxMunicipio(u,ci);
+  if(b){ enquadraCidade.pend=null; map.fitBounds(b,28); return }   // cidade inteira na tela
+  var l=CUR.vis.filter(function(p){return p.uf===u&&p.ci===ci});   // malha ainda nao chegou
+  if(!l.length) return;
+  var bb=new google.maps.LatLngBounds();
+  l.forEach(function(p){bb.extend({lat:p.la,lng:p.lo})});
+  map.fitBounds(bb,60);
+  google.maps.event.addListenerOnce(map,'idle',function(){ if(map.getZoom()>15.5) map.setZoom(15.5) });
+  enquadraCidade.pend=u+'|'+ci;
+}
 function garanteMun(){
   if(!layM) return;
   var faltam=munPrecisa().filter(function(u){ return !MUN.pronto[u]&&!MUN.baixando[u] });
@@ -361,6 +383,9 @@ function garanteMun(){
       MUN.pronto[u]=1; delete MUN.baixando[u];
       j.features.forEach(function(f){ f.properties.uf=u });
       layM.addGeoJson(j); layM.revertStyle(); layM.setStyle(estiloMunicipio); desenhaRotulos();
+      if(S.nivel==='cidade'&&enquadraCidade.pend===S.uf+'|'+S.cidade){   // reenquadra agora que a malha chegou
+        enquadraCidade(S.uf,S.cidade); desenhaPontos();
+      }
     }).catch(function(){ delete MUN.baixando[u] });
   });
   layM.revertStyle(); layM.setStyle(estiloMunicipio);
@@ -630,14 +655,9 @@ function irCidade(u,ci){
   info&&info.close();
   map.setOptions({styles:STYLE_MEIO});
   recompute();
-  var l=CUR.vis.filter(function(p){return p.uf===u&&p.ci===ci});
-  if(l.length){
-    var bb=new google.maps.LatLngBounds();
-    l.forEach(function(p){bb.extend({lat:p.la,lng:p.lo})});
-    map.fitBounds(bb,60);
-    google.maps.event.addListenerOnce(map,'idle',function(){ if(map.getZoom()>15.5) map.setZoom(15.5) });
-  }
-  garanteMun(); desenhaPontos();
+  garanteMun();
+  enquadraCidade(u,ci);
+  desenhaPontos();
   if(u==='SP'&&ci==='São Paulo') carregaAreas();
   render();
 }
