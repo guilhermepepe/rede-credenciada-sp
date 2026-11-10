@@ -260,7 +260,8 @@ function fmtRaio(m){ return m<1000 ? m+' m' : (m/1000).toLocaleString('pt-BR',{m
 var CLICOR='#009E73';
 var concMk=[];
 var REDES=[
-  {id:'amil',  nome:'Amil Dental', arq:'amil.json',   cor:'#E69F00', borda:'#6b4600', forma:'x',      dados:null, on:false},
+  {id:'amil',  nome:'Amil Dental', idx:'amil/index.json', dir:'amil/',
+                                     cor:'#E69F00', borda:'#6b4600', forma:'x',      dados:null, on:false},
   {id:'bioral',nome:'Bioral',      arq:'bioral.json', cor:'#CC79A7', borda:'#6d2a52', forma:'losango',dados:null, on:false}
 ];
 var ZCOR={'Zona Norte':'#cfe3f5','Zona Leste':'#f8ddca','Zona Sul':'#ddd0f0','Zona Oeste':'#d0b592','Centro':'#f7eec6'};
@@ -548,6 +549,7 @@ function marcaCliente(c){
       strokeColor:'#ffffff',strokeWeight:2.5,labelOrigin:new google.maps.Point(0,19)},
     label:{text:'Cliente',fontSize:'11px',fontWeight:'700',color:'#00634A',className:'lbl-map'}});
   map.fitBounds(cliCirc.getBounds(),60);
+  garanteRedesPerto();
   render();
 }
 function perto(){
@@ -555,7 +557,67 @@ function perto(){
   return CUR.vis.map(function(p){return {p:p,d:km(CLI.la,CLI.lo,p.la,p.lo)*1000}})
     .filter(function(x){return x.d<=RAIO}).sort(function(a,b){return a.d-b.d});
 }
-/* ---------- rede Amil Dental dentro do raio ---------- */
+/* ---------- qual UF cobre o cliente: so essa parte da rede nacional e baixada ---------- */
+function anelContem(a,la,lo){
+  var d=false;
+  for(var i=0,j=a.length-1;i<a.length;j=i++){
+    var yi=a[i][1],xi=a[i][0],yj=a[j][1],xj=a[j][0];
+    if((yi>la)!==(yj>la) && lo<(xj-xi)*(la-yi)/(yj-yi)+xi) d=!d;
+  }
+  return d;
+}
+function poliContem(c,la,lo){
+  if(!anelContem(c[0],la,lo)) return false;
+  for(var k=1;k<c.length;k++) if(anelContem(c[k],la,lo)) return false;   // caiu num buraco
+  return true;
+}
+function featContem(f,la,lo){
+  var g=f.geometry;
+  if(g.type==='Polygon') return poliContem(g.coordinates,la,lo);
+  for(var i=0;i<g.coordinates.length;i++) if(poliContem(g.coordinates[i],la,lo)) return true;
+  return false;
+}
+function featDistKm(f,la,lo){
+  var g=f.geometry, ps=(g.type==='Polygon')?[g.coordinates]:g.coordinates, m=1e9;
+  for(var i=0;i<ps.length;i++) for(var j=0;j<ps[i].length;j++){
+    var a=ps[i][j];
+    for(var k=0;k<a.length;k++){ var d=km(la,lo,a[k][1],a[k][0]); if(d<m) m=d }
+  }
+  return m;
+}
+var UF_VIZ_KM=30;   // o raio maximo e 5 km; 30 km cobre a folga da malha simplificada na divisa
+function ufsDoPonto(la,lo){
+  if(!D||!D.estados) return [];
+  var dentro=null, perto=[];
+  D.estados.features.forEach(function(f){
+    if(featContem(f,la,lo)){ dentro=f.properties.uf; return }
+    if(featDistKm(f,la,lo)<=UF_VIZ_KM) perto.push(f.properties.uf);
+  });
+  if(dentro) perto.unshift(dentro);
+  return perto;
+}
+function garanteRedesPerto(){
+  if(!CLI) return;
+  var ufs=ufsDoPonto(CLI.la,CLI.lo);
+  if(!ufs.length) return;
+  REDES.forEach(function(r){
+    if(!r.dir||!r.dados) return;
+    ufs.forEach(function(u){
+      if(r.ufs[u]) return;
+      r.ufs[u]=1; r.pend=(r.pend||0)+1; atualizaRedes();
+      fetch(r.dir+u+'.json',{cache:'no-cache'}).then(function(x){return x.json()})
+        .then(function(j){
+          (j.pontos||[]).forEach(function(q){
+            q.uf=u; if(!q.pl&&r.plpad) q.pl=r.plpad;
+            r.dados.pontos.push(q);
+          });
+          r.pend--; render();
+        })
+        .catch(function(){ r.ufs[u]=0; r.pend--; render() });
+    });
+  });
+}
+/* ---------- rede concorrente dentro do raio ---------- */
 function pertoRede(r){
   if(!CLI||!r.dados) return [];
   return r.dados.pontos.map(function(p){return {p:p,d:km(CLI.la,CLI.lo,p.la,p.lo)*1000}})
@@ -578,15 +640,19 @@ function desenhaConc(){
   });
 }
 function abreConc(r,x){
-  var q=encodeURIComponent(x.p.e+', Sao Paulo, SP');
+  var loc=(x.p.ci||'Sao Paulo')+' - '+(x.p.uf||'SP');
+  var q=encodeURIComponent(x.p.e+', '+loc);
+  var pls=(r.dados.planos&&x.p.pl)?x.p.pl.map(function(c){return r.dados.planos[c]||c}).join(', '):'';
   info.setContent('<div class="iw"><h3>'+esc(x.p.n)+'</h3>'+
     '<dl><dt>Rede</dt><dd>'+esc(r.nome)+'</dd>'+
     (x.p.t!=null&&r.dados.tipos?'<dt>Tipo</dt><dd>'+esc(r.dados.tipos[x.p.t])+'</dd>':'')+
     '<dt>Endere\u00e7o</dt><dd>'+esc(x.p.e)+'</dd>'+
     '<dt>Bairro</dt><dd>'+esc(x.p.b||'\u2014')+'</dd>'+
+    (x.p.ci?'<dt>Cidade</dt><dd>'+esc(x.p.ci+(x.p.uf?' - '+x.p.uf:''))+'</dd>':'')+
     (x.p.c?'<dt>CEP</dt><dd>'+esc(x.p.c)+'</dd>':'')+
     (x.p.f?'<dt>Telefone</dt><dd>'+esc(x.p.f)+'</dd>':'')+
     (x.p.np?'<dt>Profissionais</dt><dd>'+x.p.np+'</dd>':'')+
+    (pls?'<dt>Planos</dt><dd>'+esc(pls)+'</dd>':'')+
     '<dt>Dist\u00e2ncia</dt><dd>'+Math.round(x.d)+' m do cliente</dd></dl>'+
     ((x.p.es&&x.p.es.length)?'<div class="esps" style="padding:9px 0 0;border:0">'+
       x.p.es.map(function(i){return '<span>'+esc(r.dados.esp[i])+'</span>'}).join('')+'</div>':'')+
@@ -789,6 +855,7 @@ function render(){
         return '<div class="item cn" data-cn="'+i+'|'+esc(x.p.n)+'" style="--c:'+r.cor+'">'+
           '<div class="n">'+esc(x.p.n)+'</div>'+
           '<div class="m">'+Math.round(x.d)+' m'+(x.p.b?' \u00b7 '+esc(x.p.b):'')+
+          (x.p.ci?' \u00b7 '+esc(x.p.ci):'')+
             (x.p.np?' \u00b7 '+x.p.np+(x.p.np===1?' profissional':' profissionais'):'')+'</div>'+
           '<div class="a">'+esc(x.p.e)+'</div></div>'}).join('');
     });
@@ -971,7 +1038,8 @@ function atualizaRedes(){
   bl.hidden=!CLI;
   REDES.forEach(function(r){
     if(!r.bt) return;
-    r.bt.innerHTML=svgRede(r)+esc(r.nome)+(r.dados?' <b>'+pertoRede(r).length+'</b>':' \u2014 \u2026');
+    r.bt.innerHTML=svgRede(r)+esc(r.nome)+
+      (!r.dados?' \u2014 \u2026':(r.pend?' \u2026':' <b>'+pertoRede(r).length+'</b>'));
     r.bt.setAttribute('aria-pressed',r.on?'true':'false');
     r.bt.disabled=!r.dados;
   });
@@ -1386,8 +1454,15 @@ Promise.all([
   D=a[0]; D.estados=a[1];
   montaControles(); iniciaEscopo(); recompute();
   REDES.forEach(function(r){
-    fetch(r.arq,{cache:'no-cache'}).then(function(x){return x.json()})
-      .then(function(j){ r.dados=j; if(CLI) render() })
+    fetch(r.idx||r.arq,{cache:'no-cache'}).then(function(x){return x.json()})
+      .then(function(j){
+        if(r.idx){
+          r.dados={meta:j.meta,esp:j.esp,tipos:j.tipos,planos:j.planos,pontos:[]};
+          r.ufs={}; r.pend=0; r.plpad=j.plpad||null; r.ufsIdx=j.ufs;
+          garanteRedesPerto();
+        } else r.dados=j;
+        atualizaRedes(); if(CLI) render();
+      })
       .catch(function(){ r.erro=true; if(CLI) render() });
   });
   document.getElementById('cnt').textContent=D.pontos.length+' credenciados';
