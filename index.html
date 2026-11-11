@@ -262,6 +262,8 @@ var concMk=[];
 var REDES=[
   {id:'amil',  nome:'Amil Dental', idx:'amil/index.json', dir:'amil/',
                                      cor:'#E69F00', borda:'#6b4600', forma:'x',      dados:null, on:false},
+  {id:'porto', nome:'Porto Seguro', idx:'porto/index.json', dir:'porto/',
+                                     cor:'#7D3C98', borda:'#44205a', forma:'quadrado',dados:null, on:false},
   {id:'bioral',nome:'Bioral',      arq:'bioral.json', cor:'#CC79A7', borda:'#6d2a52', forma:'losango',dados:null, on:false}
 ];
 var ZCOR={'Zona Norte':'#cfe3f5','Zona Leste':'#f8ddca','Zona Sul':'#ddd0f0','Zona Oeste':'#d0b592','Centro':'#f7eec6'};
@@ -271,6 +273,7 @@ var CIDADE_FUNDO='#DCD4EE';   // fundo da cidade aberta: claro e neutro frente a
 /* formas: circulo = nossa rede, triangulo = cliente, X = concorrente */
 var TOQUE=(window.matchMedia&&window.matchMedia('(pointer:coarse)').matches)||('ontouchstart' in window);
 var SVG_TRI='M 0,-11 L 9.5,6.5 L -9.5,6.5 Z';
+var SVG_QUAD='M -7.5,-7.5 L 7.5,-7.5 L 7.5,7.5 L -7.5,7.5 Z';
 /* no toque o dedo cobre ~44px: cada ponto ganha um alvo invisivel maior */
 function alvoToque(pos,aoClicar,z){
   var h=new google.maps.Marker({position:pos,map:map,zIndex:z,cursor:'pointer',
@@ -281,14 +284,18 @@ function alvoToque(pos,aoClicar,z){
 var SVG_X='M -2,-6 L 2,-6 L 2,-2 L 6,-2 L 6,2 L 2,2 L 2,6 L -2,6 L -2,2 L -6,2 L -6,-2 L -2,-2 Z';
 var SVG_LOS='M 0,-8.5 L 6.5,0 L 0,8.5 L -6.5,0 Z';
 function formaRede(r){
-  return r.forma==='losango'
-    ? {path:SVG_LOS,scale:TOQUE?1.15:.95,fillColor:r.cor,fillOpacity:1,strokeColor:r.borda,strokeWeight:1.1,strokeOpacity:1}
-    : {path:SVG_X,scale:TOQUE?1.05:.82,rotation:45,fillColor:r.cor,fillOpacity:1,strokeColor:r.borda,strokeWeight:1.1,strokeOpacity:1};
+  if(r.forma==='losango')
+    return {path:SVG_LOS,scale:TOQUE?1.15:.95,fillColor:r.cor,fillOpacity:1,strokeColor:r.borda,strokeWeight:1.1,strokeOpacity:1};
+  if(r.forma==='quadrado')
+    return {path:SVG_QUAD,scale:TOQUE?1.05:.82,fillColor:r.cor,fillOpacity:1,strokeColor:r.borda,strokeWeight:1.1,strokeOpacity:1};
+  return {path:SVG_X,scale:TOQUE?1.05:.82,rotation:45,fillColor:r.cor,fillOpacity:1,strokeColor:r.borda,strokeWeight:1.1,strokeOpacity:1};
 }
 function svgRede(r){
-  return r.forma==='losango'
-    ? '<svg viewBox="-10 -10 20 20" aria-hidden="true"><path d="'+SVG_LOS+'" fill="'+r.cor+'" stroke="'+r.borda+'" stroke-width="1.1"/></svg>'
-    : '<svg viewBox="-11 -11 22 22" aria-hidden="true"><path d="'+SVG_X+'" transform="rotate(45)" fill="'+r.cor+'" stroke="'+r.borda+'" stroke-width="1.1"/></svg>';
+  if(r.forma==='losango')
+    return '<svg viewBox="-10 -10 20 20" aria-hidden="true"><path d="'+SVG_LOS+'" fill="'+r.cor+'" stroke="'+r.borda+'" stroke-width="1.1"/></svg>';
+  if(r.forma==='quadrado')
+    return '<svg viewBox="-10 -10 20 20" aria-hidden="true"><path d="'+SVG_QUAD+'" fill="'+r.cor+'" stroke="'+r.borda+'" stroke-width="1.1"/></svg>';
+  return '<svg viewBox="-11 -11 22 22" aria-hidden="true"><path d="'+SVG_X+'" transform="rotate(45)" fill="'+r.cor+'" stroke="'+r.borda+'" stroke-width="1.1"/></svg>';
 }
 function zc(d){ return ZCOR[D2Z[d]]||'#cbd5e1' }
 function zs(d){ return ZSTR[D2Z[d]]||'#94a3b8' }
@@ -653,6 +660,8 @@ function abreConc(r,x){
     (x.p.f?'<dt>Telefone</dt><dd>'+esc(x.p.f)+'</dd>':'')+
     (x.p.np?'<dt>Profissionais</dt><dd>'+x.p.np+'</dd>':'')+
     (pls?'<dt>Planos</dt><dd>'+esc(pls)+'</dd>':'')+
+    (x.p.sit!=null&&r.dados.sits?'<dt>Programa</dt><dd>'+esc(r.dados.sits[x.p.sit])+'</dd>':'')+
+    ((x.p.pr&&x.p.pr.length)?'<dt>Prestadores</dt><dd>'+esc(x.p.pr.join(' \u00b7 '))+'</dd>':'')+
     '<dt>Dist\u00e2ncia</dt><dd>'+Math.round(x.d)+' m do cliente</dd></dl>'+
     ((x.p.es&&x.p.es.length)?'<div class="esps" style="padding:9px 0 0;border:0">'+
       x.p.es.map(function(i){return '<span>'+esc(r.dados.esp[i])+'</span>'}).join('')+'</div>':'')+
