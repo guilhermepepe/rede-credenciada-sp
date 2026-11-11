@@ -349,10 +349,34 @@ function recompute(){
 }
 
 /* ---------- camadas ---------- */
+/* O que vale a pena desenhar muda com a escala. A mancha dos estados so
+   informa na visao ampla; de perto ela vira um veu por cima das ruas. A
+   malha das cidades vizinhas so e visivel enquanto elas cabem na tela. */
+var ZM={macro:true,mancha:true,vizinhas:true};
+function faixaZoom(){
+  if(!map) return false;
+  var z=map.getZoom()||4, ma=z<7.6, mc=z<10.5, vz=z<12.5;
+  if(ma===ZM.macro&&mc===ZM.mancha&&vz===ZM.vizinhas) return false;
+  ZM.macro=ma; ZM.mancha=mc; ZM.vizinhas=vz; return true;
+}
+function reaplicaFaixa(){
+  if(!faixaZoom()) return;
+  if(layUF) layUF.setStyle(estiloUF);
+  if(layM) layM.setStyle(estiloMunicipio);
+}
+var CEN_CID={k:null,v:null};
+function centroAberta(){
+  var k=S.uf+'|'+S.cidade;
+  if(CEN_CID.k!==k||!CEN_CID.v){ CEN_CID.k=k; CEN_CID.v=centroCidadeAberta() }
+  return CEN_CID.v;
+}
 function estiloUF(f){
   var u=f.getProperty('uf'), n=CUR.porUF[u]||0;
   if(S.nivel!=='pais')
     return {visible:u===S.uf,fillColor:'#000000',fillOpacity:0,strokeColor:'#17304a',strokeWeight:2.4,strokeOpacity:.9,zIndex:7,clickable:false};
+  if(!ZM.macro)                                   // de perto a mancha so atrapalha a leitura das ruas
+    return {visible:true,fillColor:'#000000',fillOpacity:0,
+      strokeColor:'#8fa6bb',strokeWeight:1,strokeOpacity:.75,zIndex:1,clickable:true};
   var t=CUR.maxUF?Math.sqrt(n/CUR.maxUF):0;
   return {visible:true,fillColor:n?UFCOR:'#e8ecf1',fillOpacity:n?(.12+.62*t):.5,
     strokeColor:'#ffffff',strokeWeight:1.1,strokeOpacity:.95,zIndex:1,clickable:true};
@@ -424,12 +448,20 @@ function estiloMunicipio(f){
   if(S.nivel==='cidade'||S.nivel==='ponto'){
     if(u!==S.uf) return {visible:false};
     var aberta=(ci===S.cidade);
+    if(!aberta){                                  // 205 contornos do estado inteiro travavam o zoom
+      if(!ZM.vizinhas) return {visible:false};
+      var c=centroAberta();
+      if(c&&km(c.lat,c.lng,f.getProperty('la'),f.getProperty('lo'))>VIZINHA_KM) return {visible:false};
+    }
     if(aberta&&AREAS&&u==='SP'&&ci==='São Paulo') return {visible:false};  // layC ja contorna a capital
     return {visible:true,fillColor:CIDADE_FUNDO,fillOpacity:aberta?.52:.17,
       strokeColor:aberta?CIDADE_STR:'#7d8ca0',strokeWeight:aberta?2.8:1.2,
       strokeOpacity:aberta?.95:.7,zIndex:aberta?8:3,clickable:!aberta};
   }
   if(S.nivel==='uf'&&u!==S.uf) return {visible:false};
+  if(!ZM.mancha)                                  // idem: de perto a mancha cobre as ruas
+    return {visible:true,fillColor:'#000000',fillOpacity:0,
+      strokeColor:'#5d7a96',strokeWeight:1,strokeOpacity:.7,zIndex:2,clickable:true};
   var mx=munMax(u), t=mx?Math.sqrt(n/mx):0;
   return {visible:true,fillColor:UFCOR,fillOpacity:.06+.50*t,
     strokeColor:'#1f3a52',strokeWeight:1.3,strokeOpacity:.78,zIndex:2,clickable:true};
@@ -508,8 +540,24 @@ function emFoco(p){
   if(S.nivel==='ponto'&&!S.distrito) return p.uf===S.uf&&p.ci===S.cidade;
   return p.d===S.distrito&&p.b===S.bairro;
 }
+function areaVista(folga){                        // retangulo da tela com uma folga em volta
+  if(!map) return null;
+  var b=map.getBounds(); if(!b) return null;
+  var ne=b.getNorthEast(), sw=b.getSouthWest();
+  var dla=(ne.lat()-sw.lat())*folga, dlo=(ne.lng()-sw.lng())*folga;
+  return {s:sw.lat()-dla,n:ne.lat()+dla,o:sw.lng()-dlo,l:ne.lng()+dlo};
+}
+function foraDaVista(A,la,lo){ return A&&(la<A.s||la>A.n||lo<A.o||lo>A.l) }
+function precisaRedesenhar(){                     // saiu da area desenhada ou mudou de escala
+  var A=desenhaPontos.area; if(!A||!map) return false;
+  var b=map.getBounds(); if(!b) return false;
+  if(Math.abs((map.getZoom()||0)-(desenhaPontos.zoom||0))>=0.9) return true;
+  var ne=b.getNorthEast(), sw=b.getSouthWest();
+  return sw.lat()<A.s||ne.lat()>A.n||sw.lng()<A.o||ne.lng()>A.l;
+}
 function desenhaPontos(){
   limparMarkers();
+  desenhaPontos.area=null;
   if(!CUR.vis) return;
   if(S.nivel==='pais'||S.nivel==='uf'){
     if(S.nivel==='uf') desenhaBolhas();
@@ -529,11 +577,14 @@ function desenhaPontos(){
   var sc=S.nivel==='cidade'?5.5:7, sw=S.nivel==='cidade'?1.4:2;
   var scf=Math.max(3.6,sc-2.2), swf=Math.max(.9,sw-.8);
   var cen=(S.nivel==='cidade'||S.nivel==='ponto')?centroCidadeAberta():null;
+  var A=areaVista(.35);
+  desenhaPontos.area=A; desenhaPontos.zoom=map?map.getZoom():0;
   CUR.vis.forEach(function(p){
     if(p.uf!==S.uf) return;
     if(p.ci!==S.cidade){                       // vizinhas do escopo: so as que cabem na vista
       if(!cen||km(cen.lat,cen.lng,p.la,p.lo)>VIZINHA_KM) return;
     }
+    if(foraDaVista(A,p.la,p.lo)) return;       // fora da tela nao precisa de marcador
     var f=emFoco(p);
     var pos={lat:p.la,lng:p.lo}, abre=function(){ irPonto(p) };
     var m=new google.maps.Marker({position:pos,map:map,title:p.n,zIndex:f?80:60,clickable:!TOQUE,
@@ -1436,7 +1487,12 @@ function initMap(){
     showTip(b+' — '+(CUR.porB[d+'|'+b]||0)+' credenciado'+((CUR.porB[d+'|'+b]||0)===1?'':'s'),e.domEvent);
   });
   layB.addListener('mouseout',function(){ layB.revertStyle(); hideTip() });
-  map.addListener('idle',function(){ desenhaRotulos() });
+  map.addListener('zoom_changed',reaplicaFaixa);
+  map.addListener('idle',function(){
+    reaplicaFaixa();
+    if(precisaRedesenhar()) desenhaPontos();
+    desenhaRotulos();
+  });
   irPais();
   setTimeout(function(){ if(noEscopo({uf:'SP',ci:'São Paulo'})) carregaAreas() },400);          // adianta Sao Paulo sem travar a abertura
 }
