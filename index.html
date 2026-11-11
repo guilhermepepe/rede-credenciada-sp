@@ -58,6 +58,8 @@ input,select{font-family:inherit;font-size:13px;width:100%;padding:7px 10px;bord
 .rede .bt{display:flex;flex-wrap:wrap;gap:6px}
 .rede button{display:inline-flex;align-items:center;gap:6px;font-family:inherit;font-size:11.5px;padding:6px 11px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--ink-2);cursor:pointer}
 .rede button svg{width:13px;height:13px;flex:none;overflow:visible}
+.rede button img.lgr{width:16px;height:16px;flex:none;border-radius:4px}
+.skey img.lgr{width:19px;height:19px;flex:none;border-radius:5px}
 .rede button b{font-variant-numeric:tabular-nums}
 .rede button[aria-pressed="true"]{background:var(--c);border-color:var(--cb);color:#1f1200;font-weight:600}
 .item.cn{border-left:3px solid var(--c);padding-left:13px}
@@ -261,10 +263,11 @@ var CLICOR='#009E73';
 var concMk=[];
 var REDES=[
   {id:'amil',  nome:'Amil Dental', idx:'amil/index.json', dir:'amil/',
-                                     cor:'#E69F00', borda:'#6b4600', forma:'x',      dados:null, on:false},
+     logo:'logos/amil.png',          cor:'#4A22FA', borda:'#2d10a8', forma:'x',      dados:null, on:false},
   {id:'porto', nome:'Porto Seguro', idx:'porto/index.json', dir:'porto/',
-                                     cor:'#7D3C98', borda:'#44205a', forma:'quadrado',dados:null, on:false},
-  {id:'bioral',nome:'Bioral',      arq:'bioral.json', cor:'#CC79A7', borda:'#6d2a52', forma:'losango',dados:null, on:false}
+     logo:'logos/porto.png',         cor:'#0098F0', borda:'#005c93', forma:'quadrado',dados:null, on:false},
+  {id:'bioral',nome:'Bioral',      arq:'bioral.json',
+     logo:'logos/bioral.png',        cor:'#1F4E96', borda:'#12305c', forma:'losango',dados:null, on:false}
 ];
 var ZCOR={'Zona Norte':'#cfe3f5','Zona Leste':'#f8ddca','Zona Sul':'#ddd0f0','Zona Oeste':'#d0b592','Centro':'#f7eec6'};
 var ZSTR={'Zona Norte':'#0072B2','Zona Leste':'#D55E00','Zona Sul':'#7A3FB5','Zona Oeste':'#6B4A2F','Centro':'#B38600'};
@@ -283,7 +286,11 @@ function alvoToque(pos,aoClicar,z){
 }
 var SVG_X='M -2,-6 L 2,-6 L 2,-2 L 6,-2 L 6,2 L 2,2 L 2,6 L -2,6 L -2,2 L -6,2 L -6,-2 L -2,-2 Z';
 var SVG_LOS='M 0,-8.5 L 6.5,0 L 0,8.5 L -6.5,0 Z';
+var LOGO_PX=TOQUE?31:27;          // miniatura do logo no mapa
 function formaRede(r){
+  if(r.logo&&window.google&&google.maps)
+    return {url:r.logo,scaledSize:new google.maps.Size(LOGO_PX,LOGO_PX),
+            anchor:new google.maps.Point(LOGO_PX/2,LOGO_PX/2)};
   if(r.forma==='losango')
     return {path:SVG_LOS,scale:TOQUE?1.15:.95,fillColor:r.cor,fillOpacity:1,strokeColor:r.borda,strokeWeight:1.1,strokeOpacity:1};
   if(r.forma==='quadrado')
@@ -291,6 +298,7 @@ function formaRede(r){
   return {path:SVG_X,scale:TOQUE?1.05:.82,rotation:45,fillColor:r.cor,fillOpacity:1,strokeColor:r.borda,strokeWeight:1.1,strokeOpacity:1};
 }
 function svgRede(r){
+  if(r.logo) return '<img class="lgr" src="'+r.logo+'" alt="" width="18" height="18">';
   if(r.forma==='losango')
     return '<svg viewBox="-10 -10 20 20" aria-hidden="true"><path d="'+SVG_LOS+'" fill="'+r.cor+'" stroke="'+r.borda+'" stroke-width="1.1"/></svg>';
   if(r.forma==='quadrado')
