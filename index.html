@@ -601,6 +601,7 @@ function limpaCliente(){
   if(cliMk){cliMk.setMap(null); cliMk=null}
   if(cliCirc){cliCirc.setMap(null); cliCirc=null}
   var i=document.getElementById('cli'); if(i) i.value='';
+  desenhaPontos();
   render();
 }
 function marcaCliente(c){
@@ -616,6 +617,7 @@ function marcaCliente(c){
     label:{text:'Cliente',fontSize:'11px',fontWeight:'700',color:'#00634A',className:'lbl-map'}});
   map.fitBounds(cliCirc.getBounds(),60);
   garanteRedesPerto();
+  desenhaPontos();                             // render() so refaz a lista; o mapa e aqui
   render();
 }
 function perto(){
@@ -1347,6 +1349,7 @@ function montaControles(){
   rg.onchange=function(){
     try{localStorage.setItem('raio',String(RAIO))}catch(e){}
     if(cliCirc) map.fitBounds(cliCirc.getBounds(),60);
+    desenhaPontos();
     render();
   };
   var q=document.getElementById('q'), tq;
