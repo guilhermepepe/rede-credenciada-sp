@@ -1466,7 +1466,7 @@ Promise.all([
     fetch(r.idx||r.arq,{cache:'no-cache'}).then(function(x){return x.json()})
       .then(function(j){
         if(r.idx){
-          r.dados={meta:j.meta,esp:j.esp,tipos:j.tipos,planos:j.planos,pontos:[]};
+          r.dados={meta:j.meta,esp:j.esp,tipos:j.tipos,planos:j.planos,sits:j.sits,pontos:[]};
           r.ufs={}; r.pend=0; r.plpad=j.plpad||null; r.ufsIdx=j.ufs;
           garanteRedesPerto();
         } else r.dados=j;
